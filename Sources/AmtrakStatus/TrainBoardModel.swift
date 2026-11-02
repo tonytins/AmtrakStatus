@@ -5,13 +5,15 @@ import Logging
 @MainActor
 final class TrainBoardModel {
   private let logger = Logger(label: "com.tonybark.AmtrakStatus")
-  private let stationCode = "ASD"
+  private(set) var stationCode = "ASD"
+  private(set) var stationName = "ASHLAND, VA"
   private let client = AmtrakClient()
   private let dates = AmtrakDateFormatting()
   private let staleDataThreshold: TimeInterval = 60 * 60 * 48
 
   private var timeZone = TimeZone(identifier: "America/New_York")
-  private var isRefreshing = false
+  private var refreshGenerations: Set<Int> = []
+  private var selectionGeneration = 0
   private let clockFormatter: DateFormatter = {
     let formatter = DateFormatter()
     formatter.timeStyle = .short
@@ -35,14 +37,16 @@ final class TrainBoardModel {
   }
 
   func refresh() async {
-    guard !isRefreshing else { return }
-    isRefreshing = true
-    logger.info("Starting train status refresh for station \(stationCode)")
+    let requestedCode = stationCode
+    let generation = selectionGeneration
+    guard refreshGenerations.insert(generation).inserted else { return }
+    logger.info("Starting train status refresh for station \(requestedCode)")
     statusMessage = lastUpdatedAt == nil ? "FETCHING TRAIN STATUS" : "UPDATING TRAIN STATUS"
-    defer { isRefreshing = false }
+    defer { refreshGenerations.remove(generation) }
 
     do {
-      let lookup = try await client.trainStationLookup(stationCode: stationCode)
+      let lookup = try await client.trainStationLookup(stationCode: requestedCode)
+      guard generation == selectionGeneration else { return }
       timeZone = lookup.timeZone ?? timeZone
 
       let staleData = try await client.fetchStaleStatus()
@@ -54,8 +58,9 @@ final class TrainBoardModel {
       var updatedRows: [TrainStatusRow] = []
       for number in lookup.trainNumbers {
         let trains = try await client.fetchAllTrainStatus(num: number)
+        guard generation == selectionGeneration else { return }
         for train in trains {
-          guard let leg = train.stations?.first(where: { $0.code == stationCode }),
+          guard let leg = train.stations?.first(where: { $0.code == requestedCode }),
             !isStale(leg),
             !isDataStale(train.trainID, staleTimes: staleTimes)
           else {
@@ -77,29 +82,50 @@ final class TrainBoardModel {
         }
       }
 
+      guard generation == selectionGeneration else { return }
       rows = updatedRows.sorted(by: {
         ($0.scheduledArrival ?? .distantFuture) < ($1.scheduledArrival ?? .distantFuture)
       })
       lastUpdatedAt = Date()
-      statusMessage = rows.isEmpty ? "NO ACTIVE TRAINS REPORTED" : "\(rows.count) TRAINS AT ASHLAND"
+      statusMessage =
+        rows.isEmpty ? "NO ACTIVE TRAINS REPORTED" : "\(rows.count) TRAINS AT \(requestedCode)"
       logger.info("Train status refresh completed with \(rows.count) active rows")
     } catch let AmtrakError.stationNotFound(code) {
+      guard generation == selectionGeneration else { return }
       rows = []
       statusMessage = "STATION \(code) NOT FOUND"
       logger.error("Station \(code) was not found")
     } catch let AmtrakError.httpStatus(code) {
+      guard generation == selectionGeneration else { return }
       statusMessage = "AMTRAKER RETURNED HTTP \(code)"
       logger.error("Amtraker returned HTTP status \(code)")
     } catch let AmtrakError.invalidURL(url) {
+      guard generation == selectionGeneration else { return }
       statusMessage = "INVALID API URL: \(url)"
       logger.error("Invalid Amtraker API URL: \(url)")
     } catch AmtrakError.invalidResponse {
+      guard generation == selectionGeneration else { return }
       statusMessage = "AMTRAKER RETURNED AN INVALID RESPONSE"
       logger.error("Amtraker returned a non-HTTP response")
     } catch {
+      guard generation == selectionGeneration else { return }
       statusMessage = "UPDATE FAILED: \(error.localizedDescription)"
       logger.error("Train status refresh failed: \(error.localizedDescription)")
     }
+  }
+
+  func selectStation(code: String, named name: String) async {
+    let code = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+    guard !code.isEmpty else { return }
+
+    selectionGeneration += 1
+    stationCode = code
+    stationName = name
+    rows = []
+    timeZone = nil
+    lastUpdatedAt = nil
+    statusMessage = "FETCHING TRAIN STATUS"
+    await refresh()
   }
 
   private func isStale(_ leg: Station) -> Bool {

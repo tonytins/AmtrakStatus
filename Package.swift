@@ -1,4 +1,4 @@
-// swift-tools-version: 6.0
+// swift-tools-version: 6.2
 
 import PackageDescription
 
@@ -23,6 +23,10 @@ let package = Package(
       url: "https://github.com/tonytins/GitVersion",
       .upToNextMajor(from: "0.1.0"),
     ),
+    .package(
+      url: "https://github.com/tonytins/Hudini",
+      branch: "main",
+    ),
   ],
   targets: [
     .executableTarget(
@@ -31,6 +35,7 @@ let package = Package(
         .product(name: "AmtrakClient", package: "AmtrakClient"),
         .product(name: "ArgumentParser", package: "swift-argument-parser"),
         .product(name: "GitVersion", package: "GitVersion"),
+        .product(name: "Hudini", package: "hudini"),
         .product(name: "Logging", package: "swift-log"),
         .product(name: "Raylib", package: "raylib-swift"),
       ],

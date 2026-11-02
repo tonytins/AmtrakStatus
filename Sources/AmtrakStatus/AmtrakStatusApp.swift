@@ -7,7 +7,7 @@ import Raylib
 struct AmtrakStatusApp: AsyncParsableCommand {
   static let configuration = CommandConfiguration(
     commandName: "amtrak-status",
-    abstract: "Show Amtrak train status for Ashland, Virginia."
+    abstract: "Show Amtrak train status for a selected station."
   )
 
   @Option(
@@ -28,6 +28,7 @@ struct AmtrakStatusApp: AsyncParsableCommand {
     InitWindow(1200, 760, "Amtrak Status - Ashland, VA")
     defer { CloseWindow() }
 
+    SetExitKey(.null)
     SetTargetFPS(60)
 
     let board = TrainBoardModel()

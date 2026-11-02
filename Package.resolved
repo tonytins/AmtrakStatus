@@ -1,5 +1,5 @@
 {
-  "originHash" : "81a9762fcea5d3218d18d4d75a2dc90a1f3fc0871454f4de5ffc6e02b68b983b",
+  "originHash" : "d7941f39830693834206bec9acbdb958d0af9d717147072177dca9aa1660f274",
   "pins" : [
     {
       "identity" : "gitversion",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "4900fd6fc697365b688b26dcf9408d462d4bca00",
         "version" : "0.1.0"
+      }
+    },
+    {
+      "identity" : "hudini",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tonytins/Hudini",
+      "state" : {
+        "branch" : "main",
+        "revision" : "58f494a55a9e60e34b7553d11d52f28b567c3713"
       }
     },
     {

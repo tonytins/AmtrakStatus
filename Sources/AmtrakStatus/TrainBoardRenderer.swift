@@ -1,4 +1,5 @@
 import Foundation
+import Hudini
 import Raylib
 
 private struct FlapTile {
@@ -13,6 +14,7 @@ private struct FlapTile {
 struct TrainBoardRenderer {
   let model: TrainBoardModel
 
+  private let stationPicker = StationPicker()
   private var tiles: [String: FlapTile] = [:]
   private let animationDuration = 0.42
   private let background = Color(r: 17, g: 20, b: 23, a: 255)
@@ -30,6 +32,22 @@ struct TrainBoardRenderer {
   }
 
   mutating func update(at time: Double) {
+    var openedPicker = false
+    if !stationPicker.isOpen,
+      IsMouseButtonPressed(.left),
+      CheckCollisionPointRec(GetMousePosition(), stationTitleBounds)
+    {
+      stationPicker.open()
+      openedPicker = true
+    }
+
+    if !openedPicker, let choice = stationPicker.update() {
+      let model = model
+      Task {
+        await model.selectStation(code: choice.code, named: choice.name.uppercased())
+      }
+    }
+
     let columns = model.rows.map { row in
       [
         row.scheduledTime,
@@ -83,12 +101,17 @@ struct TrainBoardRenderer {
     let time = Date.timeIntervalSinceReferenceDate
     drawBoard(width: width, height: height, time: time)
     drawFooter(width: width, height: height)
+    stationPicker.draw()
+  }
+
+  private var stationTitleBounds: Rectangle {
+    Rectangle(x: 28, y: 48, width: 500, height: 46)
   }
 
   private func drawHeader(width: Int) {
     DrawText("AMTRAK", 32, 24, 18, gold)
-    DrawText("ASHLAND, VIRGINIA", 32, 54, 34, warmWhite)
-    DrawText("STATION ASD  /  LIVE TRAIN INFORMATION", 34, 96, 14, muted)
+    DrawText(model.stationName, 32, 54, 34, warmWhite)
+    DrawText("STATION \(model.stationCode)  /  LIVE TRAIN INFORMATION", 34, 96, 14, muted)
 
     let clock = model.localTime
     DrawText("LOCAL TIME", width - 210, 28, 12, muted)
