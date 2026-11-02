@@ -6,12 +6,19 @@ struct TrainStatusRow: Identifiable {
 
   var trainID: String
   var scheduledArrival: Date?
-  var arrivalTime: String
+  var scheduledTime: String
   var trainNum: String
   var service: String
-  var origin: String
   var destination: String
-  var presence: StationStatus
   var punctuality: LateTrain
-  var track: String
+
+  var earlyDelay: String {
+    guard case .early(let minutes) = punctuality else { return "" }
+    return "\(minutes)M"
+  }
+
+  var lateDelay: String {
+    guard case .late(let minutes) = punctuality else { return "" }
+    return "\(minutes)M"
+  }
 }

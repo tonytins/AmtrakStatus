@@ -19,6 +19,10 @@ let package = Package(
       url: "https://github.com/apple/swift-log",
       .upToNextMajor(from: "1.5.0"),
     ),
+    .package(
+      url: "https://github.com/tonytins/GitVersion",
+      .upToNextMajor(from: "0.1.0"),
+    ),
   ],
   targets: [
     .executableTarget(
@@ -26,8 +30,12 @@ let package = Package(
       dependencies: [
         .product(name: "AmtrakClient", package: "AmtrakClient"),
         .product(name: "ArgumentParser", package: "swift-argument-parser"),
+        .product(name: "GitVersion", package: "GitVersion"),
         .product(name: "Logging", package: "swift-log"),
         .product(name: "Raylib", package: "raylib-swift"),
+      ],
+      plugins: [
+        .plugin(name: "GitVersionPlugin", package: "GitVersion")
       ],
     )
   ],

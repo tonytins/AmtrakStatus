@@ -63,23 +63,15 @@ final class TrainBoardModel {
           }
 
           let scheduledArrival = dates.parsedDate(from: leg.schArr)
-          let arrivalTime =
-            dates.time(from: leg.arr, in: timeZone)
-            ?? dates.time(from: leg.schArr, in: timeZone)
-            ?? "--"
-
           updatedRows.append(
             TrainStatusRow(
               trainID: train.trainID,
               scheduledArrival: scheduledArrival,
-              arrivalTime: arrivalTime,
+              scheduledTime: dates.time(from: leg.schArr, in: timeZone) ?? "--",
               trainNum: train.trainNum,
               service: train.routeName,
-              origin: train.origName,
               destination: train.destName,
-              presence: leg.status,
-              punctuality: dates.isOnTime(actual: leg.arr, scheduled: leg.schArr),
-              track: leg.platform
+              punctuality: dates.isOnTime(actual: leg.arr, scheduled: leg.schArr)
             )
           )
         }

@@ -1,6 +1,15 @@
 {
-  "originHash" : "a6b0e79d9254039bb833d62aff795e3acc8b91a2abeb07e864d3b41f9a091093",
+  "originHash" : "81a9762fcea5d3218d18d4d75a2dc90a1f3fc0871454f4de5ffc6e02b68b983b",
   "pins" : [
+    {
+      "identity" : "gitversion",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/tonytins/GitVersion",
+      "state" : {
+        "revision" : "4900fd6fc697365b688b26dcf9408d462d4bca00",
+        "version" : "0.1.0"
+      }
+    },
     {
       "identity" : "raylib-swift",
       "kind" : "remoteSourceControl",

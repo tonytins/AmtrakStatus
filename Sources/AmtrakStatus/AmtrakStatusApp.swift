@@ -31,7 +31,7 @@ struct AmtrakStatusApp: AsyncParsableCommand {
     SetTargetFPS(60)
 
     let board = TrainBoardModel()
-    let renderer = TrainBoardRenderer(model: board)
+    var renderer = TrainBoardRenderer(model: board)
     Task {
       await board.refresh()
     }
@@ -46,6 +46,7 @@ struct AmtrakStatusApp: AsyncParsableCommand {
         }
       }
 
+      renderer.update(at: Date.timeIntervalSinceReferenceDate)
       BeginDrawing()
       renderer.draw()
       EndDrawing()
