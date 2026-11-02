@@ -1,5 +1,4 @@
 import Foundation
-import SwiftCrossUI
 
 enum LateTrain {
   case onTime
@@ -7,7 +6,7 @@ enum LateTrain {
   case late(minutes: Int)
   case unknown
 
-  var descrption: String {
+  var description: String {
     switch self {
     case .onTime:
       return "On Time"
@@ -16,34 +15,23 @@ enum LateTrain {
     case .late(let minutes):
       return "\(Self.formatted(minutes)) late"
     case .unknown:
-      return ""
-    }
-  }
-
-  var color: Color {
-    switch self {
-    case .onTime:
-      return .green
-    case .early:
-      return .blue
-    case .late:
-      return .red
-    case .unknown:
-      return .gray
+      return "Status unavailable"
     }
   }
 
   static func formatted(_ minutes: Int) -> String {
     let hours = minutes / 60
-    let remainder = minutes % 60
+    let remainingMinutes = minutes % 60
 
-    let minutesPart = "\(minutes) \(minutes.pluralized(singular: "min", plural: "mins"))"
     let hoursPart = "\(hours) \(hours.pluralized(singular: "hr", plural: "hrs"))"
+    let minutesPart =
+      "\(remainingMinutes) \(remainingMinutes.pluralized(singular: "min", plural: "mins"))"
 
     guard hours > 0 else {
-      return minutesPart
+      return "\(minutes) \(minutes.pluralized(singular: "min", plural: "mins"))"
     }
 
-    return hoursPart
+    guard remainingMinutes > 0 else { return hoursPart }
+    return "\(hoursPart) \(minutesPart)"
   }
 }

@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 struct AmtrakDateFormatting {
   let isoFormatter = ISO8601DateFormatter()
 
@@ -18,13 +19,7 @@ struct AmtrakDateFormatting {
   }()
 
   func parsedDate(from isoString: String?) -> Date? {
-    guard let isoString, !isoString.isEmpty,
-      let date = isoFormatter.date(
-        from: isoString)
-    else {
-      return nil
-    }
-
+    guard let isoString, !isoString.isEmpty else { return nil }
     return isoFormatter.date(from: isoString)
   }
 
@@ -79,11 +74,6 @@ struct AmtrakDateFormatting {
     let now = Date()
     timeFormatter.timeZone = timeZone
     return timeFormatter.string(from: now)
-  }
-
-  func updateTime(timeZone: TimeZone?) {
-    let now = Date()
-    timeFormatter.timeZone = timeZone
   }
 
   func date(from isoString: String?) -> String? {

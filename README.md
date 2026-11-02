@@ -1,21 +1,20 @@
 <p align="center">
     <img title="" src="assets/banner.svg" alt="" data-align="center" width="80%">
-    <img title="" src="assets/screenshot.png" alt="" data-align="center" width="70%">
 </p>
           
 ## 🖥️ Supported Platforms
 
-| Platform                     | Minimum Version |
-| ---------------------------- | --------------- |
-| macOS                        | 10.15+          |
-| Windows                      | 11+             |
-| Linux                        | gtk 3+          |
+| Platform                     | Support |
+| ---------------------------- | ------- |
+| macOS                        | Supported |
+| Linux                        | X11 (including Wayland through XWayland) |
+| Windows                      | Not currently verified |
 
 ## 🔨 Setup
 
 ### Prerequisites
 
-You will need Swift Bundler to properly run and bundle your app.
+You will need Swift 6.0 or later and Swift Bundler to run and bundle the app.
 
 1. ``brew install mint``
 2. ``mint install stackotter/swift-bundler@main``
@@ -23,7 +22,7 @@ You will need Swift Bundler to properly run and bundle your app.
 ### Running
 
 ```
-swift-bundle run
+swift-bundler run
 ```
 
 ### Bundling
@@ -38,7 +37,9 @@ This was intended to solve a rather awkward dilemma. I turned a bunch of online 
 
 So I created simple frontend that mapped to Dixieland Software's API using Tauri. You could type in simple station code and it'd take you their status board from within the app. Simple, right? Unfortunately, I didn't know how to get it go back to change the station, my attempted UI redesigns kept failing, and I accidentally botched a migration to Tauri 2.0. I'm just not that good with Node.
 
-So it sat abandoned until I discovered [SwiftCrossUI](https://github.com/moreSwift/swift-cross-ui). Now it directly makes use of [Amtraker](https://amtraker.com/)'s API, based on models ported from [Amtrak.js](https://github.com/piemadd/amtrak).
+The app now uses [raylib-swift](https://github.com/tonytins/raylib-swift) to render an Amtrak split-flap-style status board. It currently shows trains at Ashland, Virginia (ASD), refreshing from [Amtraker](https://amtraker.com/)'s API every ten minutes by default. Use `--refresh-interval <seconds>` to choose a longer interval; values below 600 seconds are rejected. Fetch and refresh results are logged to standard error. The Amtraker client and response models live in the local `AmtrakClient` Swift package so the executable can consume them as a separate module.
+
+On Linux, install the X11 and OpenGL development headers required by raylib; see the [raylib-swift requirements](https://github.com/tonytins/raylib-swift#requirements) for platform-specific packages.
 
 ## ⚖️ License
 
