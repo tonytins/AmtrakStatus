@@ -28,7 +28,7 @@ struct AmtrakStatusApp: AsyncParsableCommand {
     InitWindow(1200, 760, "Amtrak Status - Ashland, VA")
     defer { CloseWindow() }
 
-    SetExitKey(.null)
+    SetExitKey(.escape)
     SetTargetFPS(60)
 
     let board = TrainBoardModel()
