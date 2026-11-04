@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.3.106
+
+- The header now shows the station's real name, such as `NEW YORK PENN, NY`, instead of `STATION NYP` when you type a station code. The name comes from Amtraker and appears once the station loads.
+
 ## 0.3.105
 
 - Added packaging scripts for Linux, Windows, and macOS in `packaging`. Only the Linux one has been run so far.

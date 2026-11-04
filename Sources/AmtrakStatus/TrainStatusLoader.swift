@@ -4,8 +4,14 @@ import Logging
 
 /// The outcome of loading one station's trains.
 enum BoardUpdate: Equatable, Sendable {
-  /// New rows. `unavailableTrains` lists train numbers that could not be read.
-  case loaded(rows: [TrainStatusRow], timeZone: TimeZone?, unavailableTrains: [String])
+  /// New rows. `stationName` is `nil` when Amtraker gave no usable name, and
+  /// `unavailableTrains` lists train numbers that could not be read.
+  case loaded(
+    stationName: String?,
+    rows: [TrainStatusRow],
+    timeZone: TimeZone?,
+    unavailableTrains: [String]
+  )
   /// Amtraker does not know the station.
   case stationNotFound(code: String)
   /// Nothing could be loaded, and `message` says why.
@@ -58,6 +64,7 @@ struct AmtrakerStatusLoader: TrainStatusLoading {
       )
       Self.logger.info("Train status refresh completed with \(rows.count) active rows")
       return .loaded(
+        stationName: StationHeading.make(name: lookup.name, state: lookup.state),
         rows: rows,
         timeZone: lookup.timeZone,
         unavailableTrains: unavailableTrains.sorted()
@@ -84,6 +91,20 @@ struct AmtrakerStatusLoader: TrainStatusLoading {
     default:
       "UPDATE FAILED: \(error.localizedDescription)".uppercased()
     }
+  }
+}
+
+/// Turns Amtraker's station details into the name at the top of the board.
+enum StationHeading {
+  /// Returns text such as "NEW YORK PENN, NY", or `nil` when `name` is blank. The state is left
+  /// off when Amtraker has none, or when the name already ends with it.
+  static func make(name: String, state: String?) -> String? {
+    let name = name.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+    guard !name.isEmpty else { return nil }
+
+    let state = (state ?? "").trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+    guard !state.isEmpty, !name.hasSuffix(", \(state)") else { return name }
+    return "\(name), \(state)"
   }
 }
 

@@ -2,8 +2,9 @@
 <!--
   The station picker, placed under its window's title bar.
 
-  A button named "preset.<CODE>" selects the station with that code, and its text becomes
-  the station's name. Add a button to add a preset.
+  A button named "preset.<CODE>" selects the station with that code. Its text is free to be
+  any label, and shows on the board until Amtraker's name for the station loads. Add a button
+  to add a preset.
 
   The "frame" styles color the window around this document. In "frame", fill is the accent
   color and disabled text is the secondary text color.

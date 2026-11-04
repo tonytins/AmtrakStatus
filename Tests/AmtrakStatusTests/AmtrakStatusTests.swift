@@ -171,7 +171,7 @@ func staleTrainsAreLeftOut() throws {
 func refreshApplies() async throws {
   let board = model(
     StubLoader(updates: [
-      "ASD": .loaded(rows: [sampleRow], timeZone: newYork, unavailableTrains: [])
+      "ASD": .loaded(stationName: nil, rows: [sampleRow], timeZone: newYork, unavailableTrains: [])
     ]))
   try await pump(board) { !board.rows.isEmpty }
   #expect(board.rows == [sampleRow])
@@ -186,7 +186,8 @@ func failureKeepsRows() async throws {
   board.update(now: beforeTheTrain)
   try await waitForRequests(loader, count: 1)
   await loader.releaseFirst(
-    with: .loaded(rows: [sampleRow], timeZone: newYork, unavailableTrains: []))
+    with: .loaded(
+      stationName: "ASHLAND, VA", rows: [sampleRow], timeZone: newYork, unavailableTrains: []))
   try await pump(board) { !board.rows.isEmpty }
 
   board.update(now: beforeTheTrain.addingTimeInterval(601))
@@ -196,13 +197,49 @@ func failureKeepsRows() async throws {
 
   #expect(board.rows == [sampleRow])
   #expect(board.updateSummary == "AMTRAKER RETURNED HTTP 500  /  SHOWING DATA FROM 6:00 AM")
+  #expect(board.stationName == "ASHLAND, VA")
+}
+
+@Test("A typed station takes Amtraker's name when it loads")
+func typedStationTakesName() async throws {
+  let board = model(
+    StubLoader(updates: [
+      "NYP": .loaded(
+        stationName: "NEW YORK PENN, NY", rows: [sampleRow], timeZone: newYork,
+        unavailableTrains: [])
+    ]))
+  let choice = try #require(StationChoice(typedCode: "nyp"))
+  board.selectStation(code: choice.code, named: choice.name)
+  #expect(board.stationName == "STATION NYP")
+
+  try await pump(board) { !board.rows.isEmpty }
+  #expect(board.stationName == "NEW YORK PENN, NY")
+}
+
+@Test("A refresh without a usable name keeps the name on the board")
+func missingNameKeepsCurrentName() async throws {
+  let board = model(
+    StubLoader(updates: [
+      "ASD": .loaded(stationName: nil, rows: [sampleRow], timeZone: newYork, unavailableTrains: [])
+    ]))
+  try await pump(board) { !board.rows.isEmpty }
+  #expect(board.stationName == "ASHLAND, VA")
+}
+
+@Test("A failed refresh leaves a typed station's placeholder name")
+func failureKeepsPlaceholder() async throws {
+  let board = model(StubLoader(updates: ["NYP": .failed(message: "AMTRAKER RETURNED HTTP 500")]))
+  board.selectStation(code: "NYP", named: "STATION NYP")
+  try await pump(board) { board.problem != nil }
+  #expect(board.stationName == "STATION NYP")
 }
 
 @Test("A partly failed refresh shows the rows and names what is missing")
 func partialFailureIsReported() async throws {
   let board = model(
     StubLoader(updates: [
-      "ASD": .loaded(rows: [sampleRow], timeZone: newYork, unavailableTrains: ["1124"])
+      "ASD": .loaded(
+        stationName: nil, rows: [sampleRow], timeZone: newYork, unavailableTrains: ["1124"])
     ]))
   try await pump(board) { !board.rows.isEmpty }
   #expect(board.problem == "TRAIN 1124 UNAVAILABLE")
@@ -228,11 +265,13 @@ func staleSelectionIsDropped() async throws {
   try await waitForRequests(loader, count: 2)
 
   await loader.releaseFirst(
-    with: .loaded(rows: [sampleRow], timeZone: newYork, unavailableTrains: []))
+    with: .loaded(
+      stationName: "ASHLAND, VA", rows: [sampleRow], timeZone: newYork, unavailableTrains: []))
   try await Task.sleep(for: .milliseconds(50))
   board.update(now: beforeTheTrain)
   #expect(board.rows.isEmpty)
   #expect(board.stationCode == "SPB")
+  #expect(board.stationName == "SPARTANBURG, SC")
   #expect(board.lastUpdatedAt == nil)
 }
 
@@ -335,6 +374,25 @@ func capacity(fontSize: Int, width: Int, expected: Int) {
 }
 
 // MARK: - Station choices
+
+@Test(
+  "Station headings combine Amtraker's name and state",
+  arguments: [
+    ("New York Penn", "NY", "NEW YORK PENN, NY"),
+    ("Ashland", "VA", "ASHLAND, VA"),
+    ("Pinehurst, NC", "NC", "PINEHURST, NC"),
+    ("Saint-Maurice Rivière Boom", "", "SAINT-MAURICE RIVIÈRE BOOM"),
+    ("  Quincy ", " il ", "QUINCY, IL"),
+  ])
+func stationHeadings(name: String, state: String, expected: String) {
+  #expect(StationHeading.make(name: name, state: state) == expected)
+}
+
+@Test("A station with no state or name is handled")
+func incompleteStationHeadings() {
+  #expect(StationHeading.make(name: "Ottawa", state: nil) == "OTTAWA")
+  #expect(StationHeading.make(name: "   ", state: "NY") == nil)
+}
 
 @Test(
   "Typed station codes are normalized",

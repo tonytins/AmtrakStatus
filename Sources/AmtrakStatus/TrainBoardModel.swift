@@ -71,7 +71,7 @@ final class TrainBoardModel {
   }
 
   /// Changes the station and refreshes on the next `update(now:)`. Rows and results from the
-  /// previous station are dropped.
+  /// previous station are dropped. `name` shows until a refresh brings Amtraker's name.
   func selectStation(code: String, named name: String) {
     selection += 1
     stationCode = code
@@ -99,7 +99,8 @@ final class TrainBoardModel {
 
   private func apply(_ update: BoardUpdate, now: Date) {
     switch update {
-    case .loaded(let rows, let timeZone, let unavailableTrains):
+    case .loaded(let stationName, let rows, let timeZone, let unavailableTrains):
+      self.stationName = stationName ?? self.stationName
       self.rows = rows
       self.timeZone = timeZone ?? self.timeZone
       lastUpdatedAt = now

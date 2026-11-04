@@ -12,12 +12,18 @@ public enum AmtrakError: Error {
   case stationNotFound(String)
 }
 
-/// Train numbers and the time zone associated with a station.
+/// A station's name and location, with the train numbers and time zone associated with it.
 public struct TrainStationLookUp: Sendable {
+  /// The name as Amtraker reports it, such as "New York Penn".
+  public var name: String
+  /// The state or province abbreviation. Amtraker reports none for some stations.
+  public var state: String?
   public var trainNumbers: [String]
   public var timeZone: TimeZone?
 
-  public init(trainNumbers: [String], timeZone: TimeZone?) {
+  public init(name: String, state: String?, trainNumbers: [String], timeZone: TimeZone?) {
+    self.name = name
+    self.state = state
     self.trainNumbers = trainNumbers
     self.timeZone = timeZone
   }
@@ -74,6 +80,8 @@ public struct AmtrakClient: Sendable {
     let trainNumbers = Array(Set(meta.trains.map(trainNumber(fromTrainId:))))
     let timeZone = meta.tz.flatMap(TimeZone.init(identifier:))
     return TrainStationLookUp(
+      name: meta.name,
+      state: meta.state,
       trainNumbers: trainNumbers,
       timeZone: timeZone
     )
