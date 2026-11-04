@@ -1,7 +1,6 @@
 import Foundation
-import AmtrakClient
 
-struct TrainStatusRow: Identifiable {
+struct TrainStatusRow: Identifiable, Equatable, Sendable {
   var id: String { trainID }
 
   var trainID: String
@@ -20,5 +19,31 @@ struct TrainStatusRow: Identifiable {
   var lateDelay: String {
     guard case .late(let minutes) = punctuality else { return "" }
     return "\(minutes)M"
+  }
+}
+
+/// The columns of the board. Each raw value names the region that places its tiles in `board.xml`.
+enum BoardColumn: String, CaseIterable {
+  case time = "columnTime"
+  case number = "columnNumber"
+  case train = "columnTrain"
+  case destination = "columnDestination"
+  case early = "columnEarly"
+  case late = "columnLate"
+
+  /// What the column shows in a row with no train.
+  var placeholder: String {
+    self == .time ? "  :" : ""
+  }
+
+  func value(in row: TrainStatusRow) -> String {
+    switch self {
+    case .time: row.scheduledTime
+    case .number: row.trainNum
+    case .train: row.service
+    case .destination: row.destination
+    case .early: row.earlyDelay
+    case .late: row.lateDelay
+    }
   }
 }

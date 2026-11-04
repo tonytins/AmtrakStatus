@@ -6,11 +6,12 @@ AmtrakStatus is a Swift executable that presents Amtraker train status. The
 local `AmtrakClient` package owns API requests and decoded response models; the
 executable owns presentation and application behavior.
 
-The planned main interface is a Raylib split-flap-style train status display modeled after public transport timetables,
-initially fixed to Ashland, Virginia (ASD). Hudini will be considered for
-additional interface elements in a later phase. Keep these responsibilities
-separate: API data belongs in `AmtrakClient`, while display and interaction
-logic belongs in the executable.
+The main interface is a Raylib split-flap-style train status display modeled
+after public transport timetables, opening on Ashland, Virginia (ASD). Hudini's
+UIScript documents in `Sources/AmtrakStatus/Interface` describe its layout,
+colors, and text. Keep these responsibilities separate: API data belongs in
+`AmtrakClient`, while display and interaction logic belongs in the executable.
+Put design values in the documents rather than in Swift.
 
 ## Swift and graphics
 
@@ -22,6 +23,11 @@ logic belongs in the executable.
   function names or documentation for a different version match its Swift API.
 - Keep data fetching and state updates separate from drawing where practical.
   Perform Raylib drawing only while the graphics context is available.
+- Keep the entry point synchronous and the render loop on the main thread. Do not
+  use `AsyncParsableCommand`, `@MainActor`, or `await` in the loop: on Linux they
+  move frames to threads without the OpenGL context, which makes the window
+  flicker. Nothing drains the main actor, so work sent to it never runs. Background
+  tasks return results through `Mailbox`.
 - Preserve useful existing AmtrakClient behavior while changing the interface.
 
 ## Build and review

@@ -1,5 +1,15 @@
 # Change Log
 
+## 0.3.104
+
+- Fixed the window flickering on Linux. The render loop now stays on the main thread that owns the OpenGL context, and train data loads in the background.
+- The board and station picker are now described by XML files in `Sources/AmtrakStatus/Interface`, using Hudini's UIScript.
+- The board no longer goes blank when Amtraker has no arrival or departure time for a stop, or when one train can't be read. The footer names what is missing, and says how old the data is when an update fails.
+- Times show AM and PM correctly, in a wider column, and the version shows without Git details. Updated GitVersion to 0.2.0.
+- Tiles keep their place on the board, so new trains flip over what was there. Flips no longer flash at the end.
+- Escape now closes the picker instead of quitting. It still quits from the board.
+- Clicking the station code field is now required before typing, because Hudini has no way to focus it yet.
+
 ## 0.2.104
 
 - Client now checks for any stale trains that are 48 hours old.

@@ -21,7 +21,7 @@ let package = Package(
     ),
     .package(
       url: "https://github.com/tonytins/GitVersion",
-      .upToNextMajor(from: "0.1.0"),
+      .upToNextMajor(from: "0.2.0"),
     ),
     .package(
       url: "https://github.com/tonytins/Hudini",
@@ -39,9 +39,20 @@ let package = Package(
         .product(name: "Logging", package: "swift-log"),
         .product(name: "Raylib", package: "raylib-swift"),
       ],
+      resources: [
+        .copy("Interface")
+      ],
       plugins: [
         .plugin(name: "GitVersionPlugin", package: "GitVersion")
       ],
-    )
+    ),
+    .testTarget(
+      name: "AmtrakStatusTests",
+      dependencies: [
+        "AmtrakStatus",
+        .product(name: "AmtrakClient", package: "AmtrakClient"),
+        .product(name: "Hudini", package: "hudini"),
+      ],
+    ),
   ],
 )

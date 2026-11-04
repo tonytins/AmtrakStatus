@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The train status board. The app fills the named text controls and draws split-flap
+  tiles into the regions.
+
+  A column region sets where its tiles go. Its width sets how many tiles fit, its height
+  sets their height, and its style sets their font size and colors. The "rows" region
+  sets how far down the board repeats those columns.
+-->
+<UIScript version="1">
+  <Window width="1200" height="760" minWidth="1040" minHeight="420"/>
+
+  <Style name="window" backgroundColor="#111417"/>
+  <Style name="brand" textColor="#EEB148" fontSize="18"/>
+  <Style name="station" textColor="#F2E8D3" fontSize="34"/>
+  <Style name="detail" textColor="#A49B8B" fontSize="14"/>
+  <Style name="clockLabel" textColor="#A49B8B" fontSize="12"/>
+  <Style name="clock" textColor="#EEB148" fontSize="28"/>
+  <Style name="headerDivider" backgroundColor="#4C443A"/>
+  <Style name="boardPanel" backgroundColor="#080808"/>
+  <Style name="heading" textColor="#FFFFFF" fontSize="14"/>
+  <Style name="headingDivider" backgroundColor="#A49B8B"/>
+  <Style name="rows" borderColor="#1E2026"/>
+  <Style name="status" textColor="#FFFFFF" backgroundColor="#080808" fontSize="16"/>
+  <Style name="updated" textColor="#A49B8B" fontSize="13"/>
+  <Style name="version" textColor="#EEB148" fontSize="13"/>
+  <Style name="credit" textColor="#A49B8B" fontSize="10"/>
+
+  <!-- Flap colors: text is the character, background the tile, fill a falling flap,
+       and border the line across the middle of a tile. -->
+  <Style name="flap" textColor="#FFFFFF" backgroundColor="#1E2026" fillColor="#2C2E34"
+         borderColor="#111417" fontSize="20"/>
+  <Style name="flapWide" textColor="#FFFFFF" backgroundColor="#1E2026" fillColor="#2C2E34"
+         borderColor="#111417" fontSize="22"/>
+
+  <FormattedText name="background" x="0" y="0" width="1200" height="760" style="window"
+                 edgeOffsetLeft="0" edgeOffsetRight="0" edgeOffsetTop="0" edgeOffsetBottom="0"/>
+
+  <Text name="brand" x="32" y="24" width="300" height="18" style="brand" text="AMTRAK"/>
+  <Text name="stationName" x="32" y="54" width="900" height="34" style="station"/>
+  <Region name="stationButton" x="28" y="48" width="500" height="46"/>
+  <Text name="stationDetail" x="34" y="96" width="900" height="14" style="detail"/>
+  <Text name="clockLabel" x="0" y="28" width="178" height="12" edgeOffsetRight="32"
+        style="clockLabel" text="LOCAL TIME"/>
+  <Text name="clock" x="0" y="48" width="178" height="28" edgeOffsetRight="32" style="clock"/>
+  <FormattedText name="headerDivider" x="32" y="124" width="1136" height="1"
+                 edgeOffsetLeft="32" edgeOffsetRight="32" style="headerDivider"/>
+
+  <FormattedText name="boardPanel" x="16" y="144" width="1168" height="526" style="boardPanel"
+                 edgeOffsetLeft="16" edgeOffsetRight="16" edgeOffsetTop="144" edgeOffsetBottom="90"/>
+
+  <Text name="headingTime" x="21" y="155" width="112" height="14" style="heading" text="SCHED. TIME"/>
+  <Text name="headingNumber" x="153" y="155" width="70" height="14" style="heading" text="NUMBER"/>
+  <Text name="headingTrain" x="243" y="155" width="330" height="14" style="heading" text="TRAIN"/>
+  <Text name="headingDestination" x="593" y="155" width="300" height="14" style="heading" text="TO"/>
+  <Text name="headingEarly" x="0" y="155" width="84" height="14" edgeOffsetRight="119"
+        style="heading" text="(E)ARLY"/>
+  <Text name="headingLate" x="0" y="155" width="84" height="14" edgeOffsetRight="19"
+        style="heading" text="(L)ATE"/>
+  <FormattedText name="headingDivider" x="16" y="182" width="1168" height="1"
+                 edgeOffsetLeft="16" edgeOffsetRight="16" style="headingDivider"/>
+
+  <Region name="rows" x="16" y="186" width="1168" height="484" style="rows"
+          edgeOffsetLeft="16" edgeOffsetRight="16" edgeOffsetTop="186" edgeOffsetBottom="90"/>
+
+  <Region name="columnTime" x="19" y="186" width="112" height="46" style="flap"/>
+  <Region name="columnNumber" x="151" y="186" width="70" height="46" style="flap"/>
+  <Region name="columnTrain" x="241" y="186" width="330" height="46" style="flapWide"/>
+  <Region name="columnDestination" x="591" y="186" width="390" height="46" style="flapWide"
+          edgeOffsetLeft="591" edgeOffsetRight="219"/>
+  <Region name="columnEarly" x="0" y="186" width="84" height="46" edgeOffsetRight="119" style="flap"/>
+  <Region name="columnLate" x="0" y="186" width="84" height="46" edgeOffsetRight="19" style="flap"/>
+
+  <FormattedText name="statusMessage" x="16" y="186" width="1168" height="30" style="status"
+                 edgeOffsetLeft="16" edgeOffsetRight="16"/>
+
+  <Text name="updateSummary" x="32" y="0" width="730" height="13" edgeOffsetLeft="32"
+        edgeOffsetRight="438" edgeOffsetBottom="33" style="updated"/>
+  <Text name="version" x="0" y="0" width="400" height="13" edgeOffsetRight="32" edgeOffsetBottom="33"
+        style="version" alignment="right"/>
+  <Text name="credit" x="32" y="0" width="600" height="10" edgeOffsetBottom="15" style="credit"
+        text="DATA BY AMTRAKER  /  NOT AFFILIATED WITH AMTRAK"/>
+</UIScript>

@@ -24,8 +24,8 @@ Use this checklist when reviewing changes to AmtrakStatus or its local
 - Is the split-flap display legible and stable for long or short text, changing
   status values, and window resizing?
 - Are Raylib calls made only while the required window and graphics context
-  are available? Are graphics-dependent behaviors checked at runtime when
-  headless tests are insufficient?
+  are available, and only on the main thread? Are graphics-dependent behaviors
+  checked at runtime when headless tests are insufficient?
 - Do focused tests cover changed data or presentation behavior? Are relevant
   setup instructions and documentation updated?
 

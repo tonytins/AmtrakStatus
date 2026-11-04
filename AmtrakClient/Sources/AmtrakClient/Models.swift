@@ -11,8 +11,10 @@ public struct Station: Codable, Sendable {
   public var bus: Bool
   public var schArr: String
   public var schDep: String
-  public var arr: String
-  public var dep: String
+  /// The actual or estimated arrival time. Amtraker reports `null` when it has neither.
+  public var arr: String?
+  /// The actual or estimated departure time. Amtraker reports `null` when it has neither.
+  public var dep: String?
   public var arrCmnt: String
   public var depCmnt: String
   public var status: StationStatus

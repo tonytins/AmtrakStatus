@@ -1,10 +1,15 @@
-import Foundation
 import ArgumentParser
+import Foundation
 import Logging
 import Raylib
 
+/// The entry point. It stays synchronous so the render loop keeps the process's main thread.
+///
+/// An OpenGL context belongs to one thread. An async `@main` hands the main actor to libdispatch
+/// on Linux, whose worker threads take turns running it. Frames on a thread without the context
+/// draw nothing and still swap buffers, which makes the window flicker.
 @main
-struct AmtrakStatusApp: AsyncParsableCommand {
+struct AmtrakStatusApp: ParsableCommand {
   static let configuration = CommandConfiguration(
     commandName: "amtrak-status",
     abstract: "Show Amtrak train status for a selected station."
@@ -16,43 +21,59 @@ struct AmtrakStatusApp: AsyncParsableCommand {
   )
   var refreshInterval = 600
 
-  @MainActor
-  mutating func run() async throws {
+  func validate() throws {
     guard refreshInterval >= 600 else {
       throw ValidationError("Refresh interval must be at least 600 seconds.")
     }
+  }
+
+  func run() throws {
+    precondition(Thread.isMainThread, "The render loop must run on the main thread.")
 
     LoggingSystem.bootstrap(StreamLogHandler.standardError)
 
-    SetConfigFlags([.vsyncHint, .windowResizable])
-    InitWindow(1200, 760, "Amtrak Status - Ashland, VA")
+    let boardScript = try InterfaceDocument.load(
+      named: "board",
+      requiring: TrainBoardScreen.requiredControls
+    )
+    let pickerScript = try InterfaceDocument.load(
+      named: "station-picker",
+      requiring: StationPicker.requiredControls
+    )
+    let model = TrainBoardModel(
+      stationCode: "ASD",
+      stationName: "ASHLAND, VA",
+      refreshInterval: TimeInterval(refreshInterval),
+      loader: AmtrakerStatusLoader()
+    )
+
+    SetConfigFlags([.vsyncHint, .windowResizable, .msaa4xHint])
+    InitWindow(
+      Int(boardScript.window.size.width),
+      Int(boardScript.window.size.height),
+      "Amtrak Status - \(model.stationName)"
+    )
     defer { CloseWindow() }
 
-    SetExitKey(.escape)
+    if let minimumSize = boardScript.window.minSize {
+      SetWindowMinSize(Int(minimumSize.width), Int(minimumSize.height))
+    }
+    // Escape closes the picker when it is open, and the screen quits otherwise.
+    SetExitKey(.null)
     SetTargetFPS(60)
 
-    let board = TrainBoardModel()
-    var renderer = TrainBoardRenderer(model: board)
-    Task {
-      await board.refresh()
-    }
+    let screen = TrainBoardScreen(
+      model: model,
+      script: boardScript,
+      picker: StationPicker(script: pickerScript)
+    )
 
-    var nextRefresh = Date().addingTimeInterval(TimeInterval(refreshInterval))
-
-    while !WindowShouldClose() {
-      if Date() >= nextRefresh {
-        nextRefresh = Date().addingTimeInterval(TimeInterval(refreshInterval))
-        Task {
-          await board.refresh()
-        }
-      }
-
-      renderer.update(at: Date.timeIntervalSinceReferenceDate)
+    while !WindowShouldClose(), !screen.shouldQuit {
+      let time = GetTime()
+      screen.update(at: time, now: Date())
       BeginDrawing()
-      renderer.draw()
+      screen.draw(at: time)
       EndDrawing()
-
-      await Task.yield()
     }
   }
 }
