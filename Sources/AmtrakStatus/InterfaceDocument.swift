@@ -21,17 +21,29 @@ enum InterfaceDocumentError: LocalizedError, Equatable {
 enum InterfaceDocument {
   private static let logger = Logger(label: "com.tonybark.AmtrakStatus")
 
+  /// Finds a document, in a package's `Interface` folder if it has one, and otherwise in the
+  /// resource bundle SwiftPM builds for `swift run` and `swift test`.
+  ///
+  /// Packages don't carry that bundle: on macOS, `Bundle.module` looks for it in the root of the
+  /// `.app`, where code signing doesn't allow it. `folder` defaults to the executable's folder,
+  /// or `Contents/Resources` in a Mac app.
+  static func location(
+    named name: String,
+    packagedIn folder: URL? = Bundle.main.resourceURL
+  ) -> URL? {
+    if let packaged = folder?.appendingPathComponent("Interface/\(name).xml"),
+      FileManager.default.fileExists(atPath: packaged.path)
+    {
+      return packaged
+    }
+    return Bundle.module.url(forResource: name, withExtension: "xml", subdirectory: "Interface")
+  }
+
   /// Loads a document and checks that it has every control the app depends on.
   ///
   /// Attributes the reader ignored are logged, because a misspelled one lands there.
   static func load(named name: String, requiring required: [String]) throws -> UIScript {
-    guard
-      let url = Bundle.module.url(
-        forResource: name,
-        withExtension: "xml",
-        subdirectory: "Interface"
-      )
-    else {
+    guard let url = location(named: name) else {
       throw InterfaceDocumentError.notFound(document: name)
     }
 

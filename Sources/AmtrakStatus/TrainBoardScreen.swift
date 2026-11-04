@@ -84,10 +84,7 @@ final class TrainBoardScreen {
     )
     view.setText(model.localTime(now: now), named: "clock")
     view.setText(model.updateSummary, named: "updateSummary")
-    view.setText(
-      "VERSION \(GitVersion.major).\(GitVersion.minor).\(GitVersion.patch)",
-      named: "version"
-    )
+    view.setText("VERSION \(AmtrakStatusApp.configuration.version)", named: "version")
     view.setText(model.statusMessage, named: "statusMessage")
     view.setHidden(!model.rows.isEmpty, named: "statusMessage")
 

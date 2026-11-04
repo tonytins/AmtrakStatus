@@ -390,6 +390,29 @@ func pickerDocument() throws {
   }
 }
 
+@Test("A package's interface folder comes before SwiftPM's resource bundle")
+func packagedDocumentIsPreferred() throws {
+  let folder = FileManager.default.temporaryDirectory
+    .appendingPathComponent(UUID().uuidString)
+  defer { try? FileManager.default.removeItem(at: folder) }
+  let interface = folder.appendingPathComponent("Interface")
+  try FileManager.default.createDirectory(at: interface, withIntermediateDirectories: true)
+  let packaged = interface.appendingPathComponent("board.xml")
+  try Data("<UIScript/>".utf8).write(to: packaged)
+
+  #expect(InterfaceDocument.location(named: "board", packagedIn: folder)?.path == packaged.path)
+
+  // The package has no picker document, so that lookup falls through to the bundle.
+  let picker = try #require(InterfaceDocument.location(named: "station-picker", packagedIn: folder))
+  #expect(picker.path != interface.appendingPathComponent("station-picker.xml").path)
+  #expect(picker.lastPathComponent == "station-picker.xml")
+}
+
+@Test("A document that is nowhere has no location")
+func unknownDocumentHasNoLocation() {
+  #expect(InterfaceDocument.location(named: "nonexistent", packagedIn: nil) == nil)
+}
+
 @Test("A document missing a required control is refused")
 func missingControlIsRefused() {
   #expect(

@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.3.105
+
+- Added packaging scripts for Linux, Windows, and macOS in `packaging`. Only the Linux one has been run so far.
+- Added `--version`, and `--check-interface`, which checks the interface documents without opening a window.
+- The app now looks for its interface documents in an `Interface` folder beside itself, or in `Contents/Resources` in a Mac app, before SwiftPM's resource bundle.
+
 ## 0.3.104
 
 - Fixed the window flickering on Linux. The render loop now stays on the main thread that owns the OpenGL context, and train data loads in the background.

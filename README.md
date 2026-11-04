@@ -21,6 +21,8 @@ On Linux, building needs the X11 and GL development headers, and running needs `
 
 Click the station name to change stations. Press Escape to close the picker, or to quit from the board.
 
+To build the packages for Linux, Windows, and macOS, see [`packaging`](packaging/README.md).
+
 ## 🎨 Changing the interface
 
 The layout, colors, text, and station presets live in [`Sources/AmtrakStatus/Interface`](Sources/AmtrakStatus/Interface), written in [Hudini's UIScript](https://github.com/tonytins/Hudini/blob/main/doc/UISCRIPT.md):
@@ -28,7 +30,7 @@ The layout, colors, text, and station presets live in [`Sources/AmtrakStatus/Int
 - [`board.xml`](Sources/AmtrakStatus/Interface/board.xml) is the status board. A column's `<Region>` sets where its split-flap tiles go and how many fit, and its style sets their font size and colors.
 - [`station-picker.xml`](Sources/AmtrakStatus/Interface/station-picker.xml) is the picker. A button named `preset.<CODE>` adds a station.
 
-SwiftPM copies these files into a resource bundle next to the executable, so keep the two together when moving the app.
+SwiftPM copies these files into a resource bundle next to the executable, so keep the two together when moving a build you made yourself. Packages carry them in a plain `Interface` folder instead. `AmtrakStatus --check-interface` checks the documents and prints where it found them, without opening a window.
 
 ## ⚖️ License
 

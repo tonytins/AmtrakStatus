@@ -38,6 +38,9 @@ Put design values in the documents rather than in Swift.
   visual check for behavior that depends on a Raylib window.
 - Update the relevant documentation when user-visible behavior or project
   setup changes.
+- The scripts in `packaging` build the release packages, each on its own
+  platform. See [packaging/README.md](packaging/README.md). If the app gains
+  files it needs at runtime, add them to `stage` in `packaging/env.sh`.
 
 See [REVIEW.md](REVIEW.md) for the review checklist.
 

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Amtrak Status
+Comment=Live Amtrak train status on a split-flap departure board
+Exec=AmtrakStatus
+Icon=AmtrakStatus
+Terminal=false
+Type=Application
+Categories=Utility;
+Keywords=amtrak;train;rail;status;departures;raylib;

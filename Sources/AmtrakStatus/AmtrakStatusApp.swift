@@ -12,7 +12,8 @@ import Raylib
 struct AmtrakStatusApp: ParsableCommand {
   static let configuration = CommandConfiguration(
     commandName: "amtrak-status",
-    abstract: "Show Amtrak train status for a selected station."
+    abstract: "Show Amtrak train status for a selected station.",
+    version: "\(GitVersion.major).\(GitVersion.minor).\(GitVersion.patch)"
   )
 
   @Option(
@@ -20,6 +21,12 @@ struct AmtrakStatusApp: ParsableCommand {
     help: "Minimum seconds between API refreshes. Must be at least 600."
   )
   var refreshInterval = 600
+
+  @Flag(
+    name: .long,
+    help: "Check the interface documents, print where they were found, and exit without a window."
+  )
+  var checkInterface = false
 
   func validate() throws {
     guard refreshInterval >= 600 else {
@@ -40,6 +47,13 @@ struct AmtrakStatusApp: ParsableCommand {
       named: "station-picker",
       requiring: StationPicker.requiredControls
     )
+    if checkInterface {
+      for name in ["board", "station-picker"] {
+        print(InterfaceDocument.location(named: name)?.path ?? "")
+      }
+      return
+    }
+
     let model = TrainBoardModel(
       stationCode: "ASD",
       stationName: "ASHLAND, VA",
