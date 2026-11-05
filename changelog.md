@@ -3,6 +3,8 @@
 ## 0.3.108
 
 - Added `--station` (or `-s`) to open the board on a station other than Ashland, such as `--station NYP`. It takes the same codes as the picker.
+- Added `--print`, which writes the station's trains to the terminal as tab-separated text, with a header line, and exits without a window.
+- The app now only logs warnings and errors, including Raylib's. Add `--verbose` (or `-v`) to see each request and Raylib's startup details again.
 
 ## 0.3.107
 

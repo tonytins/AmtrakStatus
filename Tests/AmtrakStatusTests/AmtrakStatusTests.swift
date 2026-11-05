@@ -443,6 +443,37 @@ func stationOption(arguments: [String]) throws {
   #expect(try AmtrakStatusApp.parse(arguments).station?.uppercased() == "NYP")
 }
 
+@Test("--print and --verbose are off unless given")
+func printAndVerboseFlags() throws {
+  let plain = try AmtrakStatusApp.parse([])
+  #expect(!plain.printsBoard && !plain.verbose)
+  let both = try AmtrakStatusApp.parse(["--print", "-v"])
+  #expect(both.printsBoard && both.verbose)
+}
+
+@Test("Printed boards are a header and one tab-separated line per row")
+func printedBoard() throws {
+  let rows = TrainStatusRows.make(
+    from: [try train()],
+    atStation: "ASD",
+    staleTimes: [:],
+    timeZone: newYork,
+    now: beforeTheTrain
+  )
+  let lines = BoardText.lines(for: rows)
+  #expect(lines.first == "time\tnumber\ttrain\tto\tearly\tlate")
+  #expect(lines.count == 2)
+  #expect(lines[1].split(separator: "\t", omittingEmptySubsequences: false).count == 6)
+}
+
+@Test("A tab inside a field cannot split it, and padding is dropped")
+func printedTabs() {
+  let row = TrainStatusRow(
+    trainID: "67-3", scheduledArrival: nil, scheduledTime: " 9:07 AM", trainNum: "67",
+    service: "Northeast\tRegional", destination: "Boston", punctuality: .onTime)
+  #expect(BoardText.lines(for: [row])[1] == "9:07 AM\t67\tNortheast Regional\tBoston\t\t")
+}
+
 @Test("--station refuses text that cannot be a station code")
 func invalidStationOption() {
   #expect(throws: (any Error).self) { try AmtrakStatusApp.parse(["--station", "A-B"]) }

@@ -34,6 +34,18 @@ struct AmtrakStatusApp: ParsableCommand {
   )
   var checkInterface = false
 
+  @Flag(
+    name: .customLong("print"),
+    help: "Print the station's trains as tab-separated text and exit without a window."
+  )
+  var printsBoard = false
+
+  @Flag(
+    name: [.short, .long],
+    help: "Log each request and refresh, and Raylib's startup details."
+  )
+  var verbose = false
+
   func validate() throws {
     guard refreshInterval >= 600 else {
       throw ValidationError("Refresh interval must be at least 600 seconds.")
@@ -51,7 +63,18 @@ struct AmtrakStatusApp: ParsableCommand {
   func run() throws {
     precondition(Thread.isMainThread, "The render loop must run on the main thread.")
 
-    LoggingSystem.bootstrap(StreamLogHandler.standardError)
+    let logLevel: Logger.Level = verbose ? .info : .warning
+    LoggingSystem.bootstrap { label in
+      var handler = StreamLogHandler.standardError(label: label)
+      handler.logLevel = logLevel
+      return handler
+    }
+    SetTraceLogLevel(verbose ? .info : .warning)
+
+    if printsBoard {
+      try printBoard()
+      return
+    }
 
     let boardScript = try InterfaceDocument.load(
       named: "board",
@@ -104,5 +127,40 @@ struct AmtrakStatusApp: ParsableCommand {
       screen.draw(at: time)
       EndDrawing()
     }
+  }
+
+  /// Loads the starting station once and writes its rows to standard output.
+  private func printBoard() throws {
+    let code = startingStation.code
+    let loader = AmtrakerStatusLoader()
+    let results = Mailbox<BoardUpdate>()
+    let finished = DispatchSemaphore(value: 0)
+    Task {
+      results.deliver(await loader.update(forStation: code))
+      finished.signal()
+    }
+    finished.wait()
+
+    switch results.collect().first {
+    case .loaded(_, let rows, _, let unavailableTrains):
+      for line in BoardText.lines(for: rows) {
+        print(line)
+      }
+      if !unavailableTrains.isEmpty {
+        Self.printError("Trains that could not be read: \(unavailableTrains.joined(separator: ", "))")
+      }
+    case .stationNotFound(let code):
+      Self.printError("Amtraker does not know station \(code).")
+      throw ExitCode.failure
+    case .failed(let message):
+      Self.printError(message)
+      throw ExitCode.failure
+    case nil:
+      throw ExitCode.failure
+    }
+  }
+
+  private static func printError(_ message: String) {
+    FileHandle.standardError.write(Data((message + "\n").utf8))
   }
 }
