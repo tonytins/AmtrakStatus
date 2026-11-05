@@ -91,6 +91,7 @@ public struct StaleData: Codable, Sendable {
 
 public struct TrainFreshness: Codable, Sendable {
   public var trainID: String
+  /// The milliseconds since Amtraker last heard about the train.
   public var timeSince: Double
 }
 

@@ -55,10 +55,7 @@ struct AmtrakerStatusLoader: TrainStatusLoading {
       let rows = TrainStatusRows.make(
         from: trains,
         atStation: code,
-        staleTimes: Dictionary(
-          staleData.lastUpdatedArr.map { ($0.trainID, $0.timeSince) },
-          uniquingKeysWith: { first, _ in first }
-        ),
+        staleTimes: TrainStatusRows.staleTimes(from: staleData),
         timeZone: lookup.timeZone,
         now: Date()
       )
@@ -111,6 +108,14 @@ enum StationHeading {
 /// Turns Amtraker's trains into board rows.
 enum TrainStatusRows {
   private static let staleDataThreshold: TimeInterval = 60 * 60 * 48
+
+  /// Returns how many seconds it has been since Amtraker heard about each train, by train ID.
+  static func staleTimes(from data: StaleData) -> [String: TimeInterval] {
+    Dictionary(
+      data.lastUpdatedArr.map { ($0.trainID, $0.timeSince / 1000) },
+      uniquingKeysWith: { first, _ in first }
+    )
+  }
 
   /// Returns a row for each train stopping at `code`, soonest first. Trains that departed on
   /// an earlier day, or that Amtraker has not heard from recently, are left out.

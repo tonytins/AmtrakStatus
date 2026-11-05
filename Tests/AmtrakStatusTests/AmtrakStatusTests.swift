@@ -165,6 +165,26 @@ func staleTrainsAreLeftOut() throws {
   #expect(rows([silent], staleTimes: ["67-3": 60]).count == 1)
 }
 
+@Test(
+  "Only trains silent for more than 48 hours count as stale, from Amtraker's milliseconds",
+  arguments: [
+    // 180 seconds, the age Amtraker's whole feed reaches between its updates.
+    (180_000.0, true),
+    // 47 hours and 49 hours.
+    (169_200_000.0, true),
+    (176_400_000.0, false),
+  ])
+func staleTimesAreMilliseconds(timeSince: Double, isShown: Bool) throws {
+  let json = """
+    {"activeTrains":1,"avgLastUpdate":0,"medianLastUpdate":0,
+     "lastUpdatedArr":[{"trainID":"67-3","timeSince":\(timeSince)}]}
+    """
+  let data = try JSONDecoder().decode(StaleData.self, from: Data(json.utf8))
+  let arriving = try train()
+  let shown = rows([arriving], staleTimes: TrainStatusRows.staleTimes(from: data))
+  #expect(shown.isEmpty != isShown)
+}
+
 // MARK: - Model
 
 @Test("A refresh reaches the model through the frame update")

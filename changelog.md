@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.3.107
+
+- Fixed trains vanishing from the board, which could leave it empty until the next update. The check for trains silent for 48 hours read Amtraker's milliseconds as seconds, so it really hid trains after about 3 minutes.
+
 ## 0.3.106
 
 - The header now shows the station's real name, such as `NEW YORK PENN, NY`, instead of `STATION NYP` when you type a station code. The name comes from Amtraker and appears once the station loads.
