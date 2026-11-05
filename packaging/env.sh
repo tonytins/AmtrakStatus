@@ -26,7 +26,7 @@ fail() {
     exit 1
 }
 
-command -v swift >/dev/null || fail "swift isn't installed; a Swift 6.2 or later toolchain is needed to build."
+command -v swift >/dev/null || fail "swift isn't installed; a Swift 6.3 or later toolchain is needed to build."
 command -v git >/dev/null || fail "git isn't installed; the app's version is counted from its history."
 
 DIST="${DIST:-$ROOT/dist/release}"

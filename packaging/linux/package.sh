@@ -6,7 +6,7 @@
 #
 # Usage: packaging/linux/package.sh
 #
-# Needs a Swift 6.2 or later toolchain and the X11 and GL headers raylib builds against (on an
+# Needs a Swift 6.3 or later toolchain and the X11 and GL headers raylib builds against (on an
 # atomic distro, Homebrew's, through CPATH and LIBRARY_PATH). The Swift runtime is built in, and
 # the packages carry the libxml2 the app links against. They run only on systems with this
 # machine's glibc or newer; the script prints the version they need. appimagetool and the AppImage

@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.3.109
+
+- Updated Hudini to its newer theming. Building now needs Swift 6.3 or later.
+- The station code field is ready for typing as soon as the picker opens, so it no longer needs a click first.
+
 ## 0.3.108
 
 - Added `--station` (or `-s`) to open the board on a station other than Ashland, such as `--station NYP`. It takes the same codes as the picker.

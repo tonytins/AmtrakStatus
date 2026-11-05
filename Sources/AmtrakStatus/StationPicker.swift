@@ -79,6 +79,8 @@ final class StationPicker {
   func open() {
     view.setText("", named: Self.codeField)
     view.setText("", named: "problem")
+    // The click that opened the picker was handled last frame, so it cannot take this away.
+    view.textField(named: Self.codeField)?.setFocused(true)
     isOpen = true
   }
 
@@ -112,7 +114,7 @@ final class StationPicker {
         return choice
       case .submitted(Self.codeField, let text):
         if let choice = choose(typedCode: text) { return choice }
-      case .submitted, .changed:
+      case .submitted, .changed, .selected:
         continue
       }
     }
