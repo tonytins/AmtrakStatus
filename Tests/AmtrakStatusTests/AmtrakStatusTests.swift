@@ -97,8 +97,8 @@ private func pump(
 private let sampleRow = TrainStatusRow(
   trainID: "67-3",
   scheduledArrival: nil,
-  scheduledTime: " 9:07 AM",
   trainNum: "67",
+  runDay: 3,
   service: "Northeast Regional",
   destination: "Newport News",
   punctuality: .unknown
@@ -138,11 +138,44 @@ func punctuality(arrival: String, expected: LateTrain) throws {
 @Test("Rows use only the characters the board's font can draw")
 func boardTimeIsASCII() throws {
   let row = try #require(rows([train()]).first)
-  #expect(row.scheduledTime == " 9:07 AM")
-  #expect(row.scheduledTime.utf8.count == row.scheduledTime.count)
+  let time = BoardRowText(timeZone: newYork, dates: BoardDateFormatting()).value(of: .time, in: row)
+  #expect(time == " 9:07 AM")
+  #expect(time.utf8.count == time.count)
 
   let clock = BoardDateFormatting().time(of: beforeTheTrain, in: newYork)
   #expect(clock == "6:00 AM")
+}
+
+@Test("Rows carry the schedule, the estimate, and the run day as data")
+func rowData() throws {
+  let row = try #require(rows([train(arr: "\"2026-11-04T09:27:00-05:00\"")]).first)
+  #expect(row.scheduledArrival == ISO8601DateFormatter().date(from: "2026-11-04T09:07:00-05:00"))
+  #expect(row.estimatedArrival == ISO8601DateFormatter().date(from: "2026-11-04T09:27:00-05:00"))
+  #expect(row.runDay == 3)
+}
+
+@Test(
+  "The run day comes from the end of the train ID",
+  arguments: [
+    ("67-3", 3), ("3-21", 21), ("1689-21", 21), ("v690-3", 3),
+    ("67", nil), ("67-", nil), ("67-x", nil), ("67-0", nil), ("67-32", nil),
+  ] as [(String, Int?)])
+func runDays(id: String, day: Int?) {
+  #expect(TrainStatusRows.runDay(fromTrainID: id) == day)
+}
+
+@Test("A row without a scheduled time shows dashes")
+func missingScheduleShowsDashes() {
+  let text = BoardRowText(timeZone: newYork, dates: BoardDateFormatting())
+  #expect(text.value(of: .time, in: sampleRow) == "--")
+}
+
+@Test("Times are written in the station's time zone")
+func timesUseStationZone() throws {
+  let row = try #require(rows([train()]).first)
+  let chicago = BoardRowText(
+    timeZone: TimeZone(identifier: "America/Chicago"), dates: BoardDateFormatting())
+  #expect(chicago.value(of: .time, in: row) == " 8:07 AM")
 }
 
 @Test("Trains that share a time keep their order between refreshes")
@@ -460,7 +493,7 @@ func printedBoard() throws {
     timeZone: newYork,
     now: beforeTheTrain
   )
-  let lines = BoardText.lines(for: rows)
+  let lines = BoardText.lines(for: rows, timeZone: newYork)
   #expect(lines.first == "time\tnumber\ttrain\tto\tearly\tlate")
   #expect(lines.count == 2)
   #expect(lines[1].split(separator: "\t", omittingEmptySubsequences: false).count == 6)
@@ -469,9 +502,12 @@ func printedBoard() throws {
 @Test("A tab inside a field cannot split it, and padding is dropped")
 func printedTabs() {
   let row = TrainStatusRow(
-    trainID: "67-3", scheduledArrival: nil, scheduledTime: " 9:07 AM", trainNum: "67",
-    service: "Northeast\tRegional", destination: "Boston", punctuality: .onTime)
-  #expect(BoardText.lines(for: [row])[1] == "9:07 AM\t67\tNortheast Regional\tBoston\t\t")
+    trainID: "67-3",
+    scheduledArrival: ISO8601DateFormatter().date(from: "2026-11-04T09:07:00-05:00"),
+    trainNum: "67", service: "Northeast\tRegional", destination: "Boston", punctuality: .onTime)
+  #expect(
+    BoardText.lines(for: [row], timeZone: newYork)[1]
+      == "9:07 AM\t67\tNortheast Regional\tBoston\t\t")
 }
 
 @Test("--station refuses text that cannot be a station code")

@@ -26,8 +26,7 @@ struct BoardDateFormatting {
   }
 
   /// Returns a time padded so its colon stays in the same tile for one- and two-digit hours.
-  func boardTime(from isoString: String?, in zone: TimeZone?) -> String? {
-    guard let date = parsedDate(from: isoString) else { return nil }
+  func boardTime(of date: Date, in zone: TimeZone?) -> String {
     let time = time(of: date, in: zone)
     return time.count < 8 ? " " + time : time
   }

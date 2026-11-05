@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.3.110
+
+- The clock's label now reads `STATION TIME` instead of `LOCAL TIME`, since it has always shown the time at the station rather than on your computer.
+
 ## 0.3.109
 
 - Updated Hudini to its newer theming. Building now needs Swift 6.3 or later.

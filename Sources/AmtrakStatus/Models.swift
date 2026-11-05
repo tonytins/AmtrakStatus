@@ -1,12 +1,17 @@
 import Foundation
 
+/// One train's stop at the station. It holds data rather than board text, because what a row
+/// shows can depend on the time and on the other rows; `BoardRowText` writes it out.
 struct TrainStatusRow: Identifiable, Equatable, Sendable {
   var id: String { trainID }
 
   var trainID: String
   var scheduledArrival: Date?
-  var scheduledTime: String
+  /// Amtraker's estimate, or the actual arrival once the train has arrived.
+  var estimatedArrival: Date?
   var trainNum: String
+  /// The day of the month the train's run started, from its ID, such as 3 for `67-3`.
+  var runDay: Int?
   var service: String
   var destination: String
   var punctuality: LateTrain
@@ -34,16 +39,5 @@ enum BoardColumn: String, CaseIterable {
   /// What the column shows in a row with no train.
   var placeholder: String {
     self == .time ? "  :" : ""
-  }
-
-  func value(in row: TrainStatusRow) -> String {
-    switch self {
-    case .time: row.scheduledTime
-    case .number: row.trainNum
-    case .train: row.service
-    case .destination: row.destination
-    case .early: row.earlyDelay
-    case .late: row.lateDelay
-    }
   }
 }

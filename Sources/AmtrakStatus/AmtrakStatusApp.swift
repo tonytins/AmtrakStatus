@@ -142,12 +142,13 @@ struct AmtrakStatusApp: ParsableCommand {
     finished.wait()
 
     switch results.collect().first {
-    case .loaded(_, let rows, _, let unavailableTrains):
-      for line in BoardText.lines(for: rows) {
+    case .loaded(_, let rows, let timeZone, let unavailableTrains):
+      for line in BoardText.lines(for: rows, timeZone: timeZone) {
         print(line)
       }
       if !unavailableTrains.isEmpty {
-        Self.printError("Trains that could not be read: \(unavailableTrains.joined(separator: ", "))")
+        let trains = unavailableTrains.joined(separator: ", ")
+        Self.printError("Trains that could not be read: \(trains)")
       }
     case .stationNotFound(let code):
       Self.printError("Amtraker does not know station \(code).")

@@ -41,7 +41,7 @@
   <Region name="stationButton" x="28" y="48" width="500" height="46"/>
   <Text name="stationDetail" x="34" y="96" width="900" height="14" style="detail"/>
   <Text name="clockLabel" x="0" y="28" width="178" height="12" edgeOffsetRight="32"
-        style="clockLabel" text="LOCAL TIME"/>
+        style="clockLabel" text="STATION TIME"/>
   <Text name="clock" x="0" y="48" width="178" height="28" edgeOffsetRight="32" style="clock"/>
   <FormattedText name="headerDivider" x="32" y="124" width="1136" height="1"
                  edgeOffsetLeft="32" edgeOffsetRight="32" style="headerDivider"/>

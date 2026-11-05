@@ -17,6 +17,7 @@ final class TrainBoardScreen {
   private let picker: StationPicker
   private let renderers: [SplitFlapRenderer]
   private let rowDivider: Color
+  private let dates = BoardDateFormatting()
   private var board = SplitFlapBoard()
   private var rowCount = 1
   private var shownStationName: String?
@@ -82,7 +83,7 @@ final class TrainBoardScreen {
       "STATION \(model.stationCode)  /  LIVE TRAIN INFORMATION",
       named: "stationDetail"
     )
-    view.setText(model.localTime(now: now), named: "clock")
+    view.setText(model.stationTime(now: now), named: "clock")
     view.setText(model.updateSummary, named: "updateSummary")
     view.setText("VERSION \(AmtrakStatusApp.configuration.version)", named: "version")
     view.setText(model.statusMessage, named: "statusMessage")
@@ -99,9 +100,11 @@ final class TrainBoardScreen {
     rowCount = SplitFlapMetrics.rowCount(forHeight: Int(rowsHeight))
 
     let columns = BoardColumn.allCases
+    let rowText = BoardRowText(timeZone: model.timeZone, dates: dates)
     let text = (0..<rowCount).map { index in
       columns.map { column in
-        index < model.rows.count ? column.value(in: model.rows[index]) : column.placeholder
+        index < model.rows.count
+          ? rowText.value(of: column, in: model.rows[index]) : column.placeholder
       }
     }
     let capacities = zip(columns, renderers).map { column, renderer in

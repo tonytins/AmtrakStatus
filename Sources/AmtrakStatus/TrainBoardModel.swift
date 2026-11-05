@@ -19,7 +19,8 @@ final class TrainBoardModel {
   private let refreshInterval: TimeInterval
   private let mailbox = Mailbox<Delivery>()
   private let dates = BoardDateFormatting()
-  private var timeZone: TimeZone?
+  /// The station's time zone, once known.
+  private(set) var timeZone: TimeZone?
   // Counts station changes, so a result for an earlier station can be recognized and dropped.
   private var selection = 0
   private var isRefreshing = false
@@ -39,7 +40,7 @@ final class TrainBoardModel {
   }
 
   /// The current time at the station.
-  func localTime(now: Date) -> String {
+  func stationTime(now: Date) -> String {
     dates.time(of: now, in: timeZone)
   }
 

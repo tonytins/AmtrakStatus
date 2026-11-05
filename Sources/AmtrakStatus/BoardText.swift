@@ -5,10 +5,10 @@ import Foundation
 enum BoardText {
   static let header = ["time", "number", "train", "to", "early", "late"]
 
-  static func lines(for rows: [TrainStatusRow]) -> [String] {
-    let fields = rows.map {
-      [$0.scheduledTime, $0.trainNum, $0.service, $0.destination, $0.earlyDelay, $0.lateDelay]
-    }
+  /// Columns follow `BoardColumn`'s order, which `header` names.
+  static func lines(for rows: [TrainStatusRow], timeZone: TimeZone?) -> [String] {
+    let text = BoardRowText(timeZone: timeZone, dates: BoardDateFormatting())
+    let fields = rows.map { row in BoardColumn.allCases.map { text.value(of: $0, in: row) } }
     return ([header] + fields).map { line in
       // The board pads times to line up its tiles, which means nothing here.
       line.map { $0.replacing("\t", with: " ").trimmingCharacters(in: .whitespaces) }

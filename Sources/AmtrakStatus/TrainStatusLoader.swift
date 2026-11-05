@@ -143,8 +143,9 @@ enum TrainStatusRows {
       return TrainStatusRow(
         trainID: train.trainID,
         scheduledArrival: dates.parsedDate(from: leg.schArr),
-        scheduledTime: dates.boardTime(from: leg.schArr, in: timeZone) ?? "--",
+        estimatedArrival: dates.parsedDate(from: leg.arr),
         trainNum: train.trainNum,
+        runDay: runDay(fromTrainID: train.trainID),
         service: train.routeName,
         destination: train.destName,
         punctuality: dates.punctuality(actual: leg.arr, scheduled: leg.schArr)
@@ -156,6 +157,13 @@ enum TrainStatusRows {
       let second = $1.scheduledArrival ?? .distantFuture
       return first == second ? $0.trainID < $1.trainID : first < second
     }
+  }
+
+  /// Returns the day of the month a run started from Amtraker's train ID, such as 3 for `67-3`,
+  /// or `nil` when the ID has no day.
+  static func runDay(fromTrainID id: String) -> Int? {
+    guard let dash = id.lastIndex(of: "-") else { return nil }
+    return Int(id[id.index(after: dash)...]).flatMap { (1...31).contains($0) ? $0 : nil }
   }
 
   private static func hasDeparted(
