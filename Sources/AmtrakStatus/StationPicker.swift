@@ -9,6 +9,14 @@ struct StationChoice: Equatable {
   private static let presetPrefix = "preset."
   private static let maximumCodeLength = 5
 
+  /// The station the board opens on when none is given.
+  static let ashland = StationChoice(name: "ASHLAND, VA", code: "ASD")
+
+  init(name: String, code: String) {
+    self.name = name
+    self.code = code
+  }
+
   /// Returns the choice for a control named `preset.<CODE>`, or `nil` for any other control.
   init?(presetControl control: String, name: String) {
     guard control.hasPrefix(Self.presetPrefix) else { return nil }

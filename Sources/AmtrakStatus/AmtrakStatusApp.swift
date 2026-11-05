@@ -22,6 +22,12 @@ struct AmtrakStatusApp: ParsableCommand {
   )
   var refreshInterval = 600
 
+  @Option(
+    name: [.short, .long],
+    help: "The station code to open on, such as NYP. Defaults to Ashland, VA (ASD)."
+  )
+  var station: String?
+
   @Flag(
     name: .long,
     help: "Check the interface documents, print where they were found, and exit without a window."
@@ -32,6 +38,14 @@ struct AmtrakStatusApp: ParsableCommand {
     guard refreshInterval >= 600 else {
       throw ValidationError("Refresh interval must be at least 600 seconds.")
     }
+    if let station, StationChoice(typedCode: station) == nil {
+      throw ValidationError("Station codes use up to 5 letters and numbers, such as NYP.")
+    }
+  }
+
+  /// The station the board opens on.
+  private var startingStation: StationChoice {
+    station.flatMap(StationChoice.init(typedCode:)) ?? .ashland
   }
 
   func run() throws {
@@ -54,9 +68,10 @@ struct AmtrakStatusApp: ParsableCommand {
       return
     }
 
+    let start = startingStation
     let model = TrainBoardModel(
-      stationCode: "ASD",
-      stationName: "ASHLAND, VA",
+      stationCode: start.code,
+      stationName: start.name,
       refreshInterval: TimeInterval(refreshInterval),
       loader: AmtrakerStatusLoader()
     )

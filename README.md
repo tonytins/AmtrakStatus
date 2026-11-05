@@ -19,7 +19,7 @@ swift test
 
 On Linux, building needs the X11 and GL development headers, and running needs `libxml2.so.2` for Hudini's XML reader.
 
-Click the station name to change stations. Press Escape to close the picker, or to quit from the board.
+The board opens on Ashland, VA (ASD). To open on another station, pass its code, as in `swift run AmtrakStatus --station NYP` (or `-s NYP`). Click the station name to change stations. Press Escape to close the picker, or to quit from the board.
 
 To build the packages for Linux, Windows, and macOS, see [`packaging`](packaging/README.md).
 

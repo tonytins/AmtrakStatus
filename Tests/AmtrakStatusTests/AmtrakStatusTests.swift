@@ -436,6 +436,18 @@ func presetControls() {
   #expect(StationChoice(presetControl: "cancel", name: "Cancel") == nil)
 }
 
+// MARK: - Command line
+
+@Test("--station and -s take a station code", arguments: [["--station", "nyp"], ["-s", "NYP"]])
+func stationOption(arguments: [String]) throws {
+  #expect(try AmtrakStatusApp.parse(arguments).station?.uppercased() == "NYP")
+}
+
+@Test("--station refuses text that cannot be a station code")
+func invalidStationOption() {
+  #expect(throws: (any Error).self) { try AmtrakStatusApp.parse(["--station", "A-B"]) }
+}
+
 // MARK: - Interface documents
 
 @Test("The board document has every control the screen uses")

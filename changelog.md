@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.3.108
+
+- Added `--station` (or `-s`) to open the board on a station other than Ashland, such as `--station NYP`. It takes the same codes as the picker.
+
 ## 0.3.107
 
 - Fixed trains vanishing from the board, which could leave it empty until the next update. The check for trains silent for 48 hours read Amtraker's milliseconds as seconds, so it really hid trains after about 3 minutes.
