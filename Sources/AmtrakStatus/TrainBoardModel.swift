@@ -27,6 +27,9 @@ final class TrainBoardModel {
   private var selection = 0
   private var isRefreshing = false
   private var nextRefresh = Date.distantPast
+  // Whether the next refresh may use cached data. Only the first one for a station does: timed
+  // refreshes come an interval after the last, when the cache has nothing newer.
+  private var mayReuseCache = true
 
   init(
     stationCode: String,
@@ -80,7 +83,7 @@ final class TrainBoardModel {
   func update(now: Date) {
     for delivery in mailbox.collect() where delivery.selection == selection {
       isRefreshing = false
-      apply(delivery.update, now: now)
+      apply(delivery.update)
     }
 
     guard now >= nextRefresh, !isRefreshing else { return }
@@ -101,6 +104,7 @@ final class TrainBoardModel {
     statusMessage = "FETCHING TRAIN STATUS"
     isRefreshing = false
     nextRefresh = .distantPast
+    mayReuseCache = true
   }
 
   private func startRefresh() {
@@ -108,20 +112,24 @@ final class TrainBoardModel {
     if lastUpdatedAt == nil, problem == nil {
       statusMessage = "FETCHING TRAIN STATUS"
     }
+    let maxAge = mayReuseCache ? refreshInterval : nil
+    mayReuseCache = false
     let (loader, mailbox, code, selection) = (loader, mailbox, stationCode, selection)
     Task.detached {
-      let update = await loader.update(forStation: code)
+      let update = await loader.update(forStation: code, reusingCacheWithin: maxAge)
       mailbox.deliver(Delivery(selection: selection, update: update))
     }
   }
 
-  private func apply(_ update: BoardUpdate, now: Date) {
+  private func apply(_ update: BoardUpdate) {
     switch update {
-    case .loaded(let stationName, let rows, let timeZone, let unavailableTrains):
+    case .loaded(let stationName, let rows, let timeZone, let unavailableTrains, let fetchedAt):
       self.stationName = stationName ?? self.stationName
       self.rows = rows
       self.timeZone = timeZone ?? self.timeZone
-      lastUpdatedAt = now
+      lastUpdatedAt = fetchedAt
+      // Cached data is older than this refresh, so its next refresh is due sooner.
+      nextRefresh = min(nextRefresh, fetchedAt.addingTimeInterval(refreshInterval))
       problem = Self.summary(ofUnavailable: unavailableTrains)
       statusMessage = problem ?? "NO ACTIVE TRAINS REPORTED"
     case .stationNotFound(let code):

@@ -60,7 +60,9 @@ private func rows(
 private struct StubLoader: TrainStatusLoading {
   let updates: [String: BoardUpdate]
 
-  func update(forStation code: String) async -> BoardUpdate {
+  func update(forStation code: String, reusingCacheWithin maxAge: TimeInterval?) async
+    -> BoardUpdate
+  {
     updates[code] ?? .failed(message: "NO STUB")
   }
 }
@@ -69,8 +71,13 @@ private struct StubLoader: TrainStatusLoading {
 private actor GatedLoader: TrainStatusLoading {
   private var waiting: [CheckedContinuation<BoardUpdate, Never>] = []
 
-  func update(forStation code: String) async -> BoardUpdate {
-    await withCheckedContinuation { waiting.append($0) }
+  private(set) var maxAges: [TimeInterval?] = []
+
+  func update(forStation code: String, reusingCacheWithin maxAge: TimeInterval?) async
+    -> BoardUpdate
+  {
+    maxAges.append(maxAge)
+    return await withCheckedContinuation { waiting.append($0) }
   }
 
   var waitingCount: Int { waiting.count }
@@ -260,6 +267,29 @@ private func age(_ url: URL, in cache: ResponseCache, by seconds: TimeInterval) 
     ofItemAtPath: cache.file(for: url).path)
 }
 
+@Test("A client reuses a fresh cached response without asking Amtraker, and dates it")
+func clientReusesCache() async throws {
+  let folder = FileManager.default.temporaryDirectory
+    .appendingPathComponent("AmtrakStatusTests-\(UUID().uuidString)", isDirectory: true)
+  defer { try? FileManager.default.removeItem(at: folder) }
+  let cache = ResponseCache(directory: folder)
+  let url = URL(string: "https://api.amtraker.com/v3/stations/ZZZ")!
+  let station = """
+    {"ZZZ":{"name":"Cached Station","code":"ZZZ","tz":"America/New_York","bus":false,
+     "trains":["67-3"]}}
+    """
+  try cache.save(Data(station.utf8), for: url)
+  let fetchedAt = try #require(try cache.entry(for: url)).fetchedAt
+
+  // ZZZ is not a real station, so a request to Amtraker would fail rather than return this.
+  let dates = FetchDates()
+  let client = AmtrakClient(cache: cache, freshness: .reuse(maxAge: 600), fetchDates: dates)
+  let lookup = try await client.trainStationLookup(stationCode: "ZZZ")
+  #expect(lookup.name == "Cached Station")
+  #expect(lookup.trainNumbers == ["67"])
+  #expect(dates.oldest == fetchedAt)
+}
+
 // MARK: - Rows
 
 @Test("Rows use only the characters the board's font can draw")
@@ -413,7 +443,9 @@ func modelLookAhead() async throws {
   let later = row(arriving: "2026-11-04T13:00:00-05:00")
   let board = model(
     StubLoader(updates: [
-      "ASD": .loaded(stationName: nil, rows: [later], timeZone: newYork, unavailableTrains: [])
+      "ASD": .loaded(
+        stationName: nil, rows: [later], timeZone: newYork, unavailableTrains: [],
+        fetchedAt: beforeTheTrain)
     ]),
     lookAheadHours: 6)
   try await pump(board) { !board.rows.isEmpty }
@@ -432,7 +464,7 @@ func lookAheadMessage(hours: Int?, expected: String) async throws {
     StubLoader(updates: [
       "ASD": .loaded(
         stationName: nil, rows: hours == nil ? [] : [tomorrow], timeZone: newYork,
-        unavailableTrains: [])
+        unavailableTrains: [], fetchedAt: beforeTheTrain)
     ]),
     lookAheadHours: hours)
   try await pump(board) { board.lastUpdatedAt != nil }
@@ -443,12 +475,62 @@ func lookAheadMessage(hours: Int?, expected: String) async throws {
 func refreshApplies() async throws {
   let board = model(
     StubLoader(updates: [
-      "ASD": .loaded(stationName: nil, rows: [sampleRow], timeZone: newYork, unavailableTrains: [])
+      "ASD": .loaded(
+        stationName: nil, rows: [sampleRow], timeZone: newYork, unavailableTrains: [],
+        fetchedAt: beforeTheTrain)
     ]))
   try await pump(board) { !board.rows.isEmpty }
   #expect(board.rows == [sampleRow])
   #expect(board.problem == nil)
   #expect(board.updateSummary.hasPrefix("UPDATED "))
+}
+
+@Test("Only the first refresh for a station may use the cache")
+func firstRefreshReusesCache() async throws {
+  let loader = GatedLoader()
+  let board = model(loader)
+  let loaded = BoardUpdate.loaded(
+    stationName: nil, rows: [sampleRow], timeZone: newYork, unavailableTrains: [],
+    fetchedAt: beforeTheTrain)
+
+  board.update(now: beforeTheTrain)
+  try await waitForRequests(loader, count: 1)
+  await loader.releaseFirst(with: loaded)
+  try await pump(board) { !board.rows.isEmpty }
+
+  board.update(now: beforeTheTrain.addingTimeInterval(601))
+  try await waitForRequests(loader, count: 1)
+  await loader.releaseFirst(with: loaded)
+
+  board.selectStation(code: "NYP", named: "STATION NYP")
+  board.update(now: beforeTheTrain.addingTimeInterval(602))
+  try await waitForRequests(loader, count: 1)
+
+  #expect(await loader.maxAges == [600, nil, 600])
+}
+
+@Test("Cached data shows when it was fetched, and brings the next refresh closer")
+func cachedDataIsDated() async throws {
+  let loader = GatedLoader()
+  let board = model(loader)
+  let fetchedAt = beforeTheTrain.addingTimeInterval(-500)
+
+  board.update(now: beforeTheTrain)
+  try await waitForRequests(loader, count: 1)
+  await loader.releaseFirst(
+    with: .loaded(
+      stationName: nil, rows: [sampleRow], timeZone: newYork, unavailableTrains: [],
+      fetchedAt: fetchedAt))
+  try await pump(board) { !board.rows.isEmpty }
+  #expect(board.lastUpdatedAt == fetchedAt)
+  #expect(board.updateSummary == "UPDATED 05:51")
+
+  // Due 600 seconds after the data was fetched, not after this refresh started.
+  board.update(now: beforeTheTrain.addingTimeInterval(99))
+  try await Task.sleep(for: .milliseconds(100))
+  #expect(await loader.waitingCount == 0)
+  board.update(now: beforeTheTrain.addingTimeInterval(101))
+  try await waitForRequests(loader, count: 1)
 }
 
 @Test("A failed refresh keeps the rows and says they are old")
@@ -459,7 +541,8 @@ func failureKeepsRows() async throws {
   try await waitForRequests(loader, count: 1)
   await loader.releaseFirst(
     with: .loaded(
-      stationName: "ASHLAND, VA", rows: [sampleRow], timeZone: newYork, unavailableTrains: []))
+      stationName: "ASHLAND, VA", rows: [sampleRow], timeZone: newYork, unavailableTrains: [],
+      fetchedAt: beforeTheTrain))
   try await pump(board) { !board.rows.isEmpty }
 
   board.update(now: beforeTheTrain.addingTimeInterval(601))
@@ -478,7 +561,7 @@ func typedStationTakesName() async throws {
     StubLoader(updates: [
       "NYP": .loaded(
         stationName: "NEW YORK PENN, NY", rows: [sampleRow], timeZone: newYork,
-        unavailableTrains: [])
+        unavailableTrains: [], fetchedAt: beforeTheTrain)
     ]))
   let choice = try #require(StationChoice(typedCode: "nyp"))
   board.selectStation(code: choice.code, named: choice.name)
@@ -492,7 +575,9 @@ func typedStationTakesName() async throws {
 func missingNameKeepsCurrentName() async throws {
   let board = model(
     StubLoader(updates: [
-      "ASD": .loaded(stationName: nil, rows: [sampleRow], timeZone: newYork, unavailableTrains: [])
+      "ASD": .loaded(
+        stationName: nil, rows: [sampleRow], timeZone: newYork, unavailableTrains: [],
+        fetchedAt: beforeTheTrain)
     ]))
   try await pump(board) { !board.rows.isEmpty }
   #expect(board.stationName == "ASHLAND, VA")
@@ -511,7 +596,8 @@ func partialFailureIsReported() async throws {
   let board = model(
     StubLoader(updates: [
       "ASD": .loaded(
-        stationName: nil, rows: [sampleRow], timeZone: newYork, unavailableTrains: ["1124"])
+        stationName: nil, rows: [sampleRow], timeZone: newYork, unavailableTrains: ["1124"],
+        fetchedAt: beforeTheTrain)
     ]))
   try await pump(board) { !board.rows.isEmpty }
   #expect(board.problem == "TRAIN 1124 UNAVAILABLE")
@@ -538,7 +624,8 @@ func staleSelectionIsDropped() async throws {
 
   await loader.releaseFirst(
     with: .loaded(
-      stationName: "ASHLAND, VA", rows: [sampleRow], timeZone: newYork, unavailableTrains: []))
+      stationName: "ASHLAND, VA", rows: [sampleRow], timeZone: newYork, unavailableTrains: [],
+      fetchedAt: beforeTheTrain))
   try await Task.sleep(for: .milliseconds(50))
   board.update(now: beforeTheTrain)
   #expect(board.rows.isEmpty)

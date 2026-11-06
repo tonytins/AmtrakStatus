@@ -29,14 +29,39 @@ public struct TrainStationLookUp: Sendable {
   }
 }
 
+/// Where an `AmtrakClient` may take its responses from.
+public enum Freshness: Sendable, Equatable {
+  /// Always ask Amtraker.
+  case fetch
+  /// Use a cached response fetched within `maxAge` seconds, and ask Amtraker otherwise.
+  case reuse(maxAge: TimeInterval)
+}
+
 /// Fetches train and station data from the Amtraker API.
+///
+/// With a cache, every response that decodes is saved, so a later client can reuse it.
 public struct AmtrakClient: Sendable {
   private static let logger = Logger(label: "com.tonybark.AmtrakClient")
   private static let stationBaseURL = "https://api.amtraker.com/v3/stations"
   private static let trainsBaseURL = "https://api.amtraker.com/v3/trains"
   private static let staleBaseURL = "https://api.amtraker.com/v3/stale"
 
-  public init() {}
+  private let cache: ResponseCache?
+  private let freshness: Freshness
+  private let fetchDates: FetchDates?
+
+  /// Creates a client. `cache` keeps responses between requests and launches, `freshness` says
+  /// whether a cached response may be used instead of asking Amtraker, and `fetchDates` collects
+  /// when each returned response was fetched.
+  public init(
+    cache: ResponseCache? = nil,
+    freshness: Freshness = .fetch,
+    fetchDates: FetchDates? = nil
+  ) {
+    self.cache = cache
+    self.freshness = freshness
+    self.fetchDates = fetchDates
+  }
 
   public func fetchTrain(number trainid: String) async throws -> TrainResponse {
     try await get("\(Self.trainsBaseURL)/\(trainid)")
@@ -92,6 +117,10 @@ public struct AmtrakClient: Sendable {
       throw AmtrakError.invalidURL(urlString)
     }
 
+    if let cached: T = reusableResponse(for: url) {
+      return cached
+    }
+
     Self.logger.debug("Fetching \(urlString)")
 
     do {
@@ -108,12 +137,46 @@ public struct AmtrakClient: Sendable {
       Self.logger.info(
         "Fetched \(urlString): HTTP \(http.statusCode), \(data.count) bytes"
       )
+      fetchDates?.note(Date())
+      save(data, for: url)
       return decoded
     } catch {
       Self.logger.error(
         "Fetch failed for \(urlString): \(error.localizedDescription)"
       )
       throw error
+    }
+  }
+
+  /// Returns the cached response for `url` when `freshness` allows it and it still decodes.
+  private func reusableResponse<T: Decodable>(for url: URL) -> T? {
+    guard case .reuse(let maxAge) = freshness, let cache else { return nil }
+    do {
+      guard let entry = try cache.entry(for: url),
+        Date().timeIntervalSince(entry.fetchedAt) <= maxAge
+      else {
+        return nil
+      }
+      let decoded = try JSONDecoder().decode(T.self, from: entry.data)
+      Self.logger.info("Reused \(url.absoluteString) from the cache, fetched \(entry.fetchedAt)")
+      fetchDates?.note(entry.fetchedAt)
+      return decoded
+    } catch {
+      Self.logger.warning(
+        "Cached \(url.absoluteString) is unusable, fetching it: \(error.localizedDescription)"
+      )
+      return nil
+    }
+  }
+
+  /// Saves a response that decoded. A failure only costs the next launch a request.
+  private func save(_ data: Data, for url: URL) {
+    do {
+      try cache?.save(data, for: url)
+    } catch {
+      Self.logger.warning(
+        "Could not cache \(url.absoluteString): \(error.localizedDescription)"
+      )
     }
   }
 }

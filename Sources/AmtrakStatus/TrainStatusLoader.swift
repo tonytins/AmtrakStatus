@@ -4,13 +4,15 @@ import Logging
 
 /// The outcome of loading one station's trains.
 enum BoardUpdate: Equatable, Sendable {
-  /// New rows. `stationName` is `nil` when Amtraker gave no usable name, and
-  /// `unavailableTrains` lists train numbers that could not be read.
+  /// New rows. `stationName` is `nil` when Amtraker gave no usable name,
+  /// `unavailableTrains` lists train numbers that could not be read, and `fetchedAt` is when
+  /// the oldest of the data was fetched, which is earlier than now when it came from the cache.
   case loaded(
     stationName: String?,
     rows: [TrainStatusRow],
     timeZone: TimeZone?,
-    unavailableTrains: [String]
+    unavailableTrains: [String],
+    fetchedAt: Date
   )
   /// Amtraker does not know the station.
   case stationNotFound(code: String)
@@ -20,17 +22,29 @@ enum BoardUpdate: Equatable, Sendable {
 
 /// Loads board data away from the render thread.
 protocol TrainStatusLoading: Sendable {
-  func update(forStation code: String) async -> BoardUpdate
+  /// Loads `code`'s trains. With `maxAge`, responses cached within that many seconds may be
+  /// used instead of asking Amtraker; without it, everything is fetched.
+  func update(forStation code: String, reusingCacheWithin maxAge: TimeInterval?) async
+    -> BoardUpdate
 }
 
 /// Loads board data from Amtraker.
 struct AmtrakerStatusLoader: TrainStatusLoading {
   private static let logger = Logger(label: "com.tonybark.AmtrakStatus")
 
-  private let client = AmtrakClient()
+  /// Where responses are kept between refreshes and launches, or `nil` for nowhere.
+  let cache: ResponseCache?
 
-  func update(forStation code: String) async -> BoardUpdate {
+  func update(forStation code: String, reusingCacheWithin maxAge: TimeInterval?) async
+    -> BoardUpdate
+  {
     Self.logger.info("Starting train status refresh for station \(code)")
+    let fetchDates = FetchDates()
+    let client = AmtrakClient(
+      cache: cache,
+      freshness: maxAge.map { .reuse(maxAge: $0) } ?? .fetch,
+      fetchDates: fetchDates
+    )
     do {
       let lookup = try await client.trainStationLookup(stationCode: code)
       let staleData = try await client.fetchStaleStatus()
@@ -62,7 +76,8 @@ struct AmtrakerStatusLoader: TrainStatusLoading {
         stationName: StationHeading.make(name: lookup.name, state: lookup.state),
         rows: rows,
         timeZone: lookup.timeZone,
-        unavailableTrains: unavailableTrains.sorted()
+        unavailableTrains: unavailableTrains.sorted(),
+        fetchedAt: fetchDates.oldest ?? Date()
       )
     } catch AmtrakError.stationNotFound(let code) {
       Self.logger.error("Station \(code) was not found")

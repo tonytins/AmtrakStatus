@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.3.115
+
+- Amtraker's responses are now kept in your cache folder, such as `~/.cache/AmtrakStatus` on Linux. Starting the app, using `--print`, or switching back to a station within the refresh interval reuses them instead of fetching everything again, and stations share what they have in common. Responses older than two days are deleted at startup.
+- `UPDATED` shows when the data was fetched, which is earlier than now when it came from the cache, and the next update is due an interval after that.
+
 ## 0.3.113
 
 - Added `--hours`, which shows only trains due within that many hours, such as `--hours 6`. A train counts by Amtraker's estimate when there is one, so a late train is judged by when it is really coming, and a late train stays until it departs. Trains come onto the board as their time nears, without waiting for an update. It also applies to `--print`.

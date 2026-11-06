@@ -1,3 +1,4 @@
+import AmtrakClient
 import ArgumentParser
 import Foundation
 import Logging
@@ -79,9 +80,10 @@ struct AmtrakStatusApp: ParsableCommand {
       return handler
     }
     SetTraceLogLevel(verbose ? .info : .warning)
+    let loader = AmtrakerStatusLoader(cache: Self.openCache())
 
     if printsBoard {
-      try printBoard()
+      try printBoard(with: loader)
       return
     }
 
@@ -106,7 +108,7 @@ struct AmtrakStatusApp: ParsableCommand {
       stationName: start.name,
       refreshInterval: TimeInterval(refreshInterval),
       lookAheadHours: hours,
-      loader: AmtrakerStatusLoader()
+      loader: loader
     )
 
     SetConfigFlags([.vsyncHint, .windowResizable, .msaa4xHint])
@@ -140,19 +142,19 @@ struct AmtrakStatusApp: ParsableCommand {
   }
 
   /// Loads the starting station once and writes its rows to standard output.
-  private func printBoard() throws {
+  private func printBoard(with loader: AmtrakerStatusLoader) throws {
     let code = startingStation.code
-    let loader = AmtrakerStatusLoader()
+    let maxAge = TimeInterval(refreshInterval)
     let results = Mailbox<BoardUpdate>()
     let finished = DispatchSemaphore(value: 0)
     Task {
-      results.deliver(await loader.update(forStation: code))
+      results.deliver(await loader.update(forStation: code, reusingCacheWithin: maxAge))
       finished.signal()
     }
     finished.wait()
 
     switch results.collect().first {
-    case .loaded(_, let rows, let timeZone, let unavailableTrains):
+    case .loaded(_, let rows, let timeZone, let unavailableTrains, _):
       let now = Date()
       let shown = TrainStatusRows.due(rows, within: hours, of: now)
       for line in BoardText.lines(for: shown, timeZone: timeZone, now: now) {
@@ -171,6 +173,27 @@ struct AmtrakStatusApp: ParsableCommand {
     case nil:
       throw ExitCode.failure
     }
+  }
+
+  /// How long cached responses are kept before they are deleted at startup.
+  private static let cacheLifetime: TimeInterval = 2 * 24 * 60 * 60
+
+  /// Returns the response cache after deleting old responses, or `nil` when this system has no
+  /// cache folder. The app works without one, fetching everything each launch.
+  private static func openCache() -> ResponseCache? {
+    let logger = Logger(label: "com.tonybark.AmtrakStatus")
+    guard let directory = ResponseCache.standardDirectory(named: "AmtrakStatus") else {
+      logger.warning("This system has no cache folder, so nothing will be cached")
+      return nil
+    }
+    let cache = ResponseCache(directory: directory)
+    do {
+      let removed = try cache.removeEntries(fetchedBefore: Date() - cacheLifetime)
+      logger.info("Using the cache in \(directory.path), deleted \(removed) old responses")
+    } catch {
+      logger.warning("Could not delete old cached responses: \(error.localizedDescription)")
+    }
+    return cache
   }
 
   private static func printError(_ message: String) {
