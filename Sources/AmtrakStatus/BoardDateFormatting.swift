@@ -7,8 +7,8 @@ struct BoardDateFormatting {
   private let isoFormatter = ISO8601DateFormatter()
 
   // A fixed 24-hour format, such as "09:07". Every time is five characters, so colons line up
-  // on the board, and it doesn't follow the system's style, which can use characters raylib's
-  // default font cannot draw.
+  // on the board, and it doesn't follow the system's style, which can use characters outside
+  // ASCII, the only ones the fonts are loaded with.
   private let timeFormatter: DateFormatter = {
     let formatter = DateFormatter()
     formatter.locale = Locale(identifier: "en_US_POSIX")

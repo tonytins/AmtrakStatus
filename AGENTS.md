@@ -11,9 +11,10 @@ after public transport timetables, opening on Ashland, Virginia (ASD). Hudini's
 UIScript documents in `Sources/AmtrakStatus/Interface` describe its layout,
 colors, and text. Keep these responsibilities separate: API data belongs in
 `AmtrakClient`, while display and interaction logic belongs in the executable.
-Put design values in the documents rather than in Swift. The one exception is
-fonts: UIScript can't name a font yet, so `InterfaceFont.swift` names them until
-Hudini can.
+Put design values in the documents rather than in Swift. The exceptions are
+what UIScript can't express yet: fonts, named in `InterfaceFont.swift`, and the
+split-flap tiles' corner radius, in `SplitFlapRenderer.swift`. Move them into the
+documents once Hudini can.
 
 ## Swift and graphics
 

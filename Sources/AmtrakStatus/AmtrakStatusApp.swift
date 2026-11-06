@@ -129,7 +129,6 @@ struct AmtrakStatusApp: ParsableCommand {
     defer { CloseWindow() }
 
     let textFont = InterfaceFont.text.load()
-    // Not drawn with yet: the split-flap tiles take it up next.
     let boardFont = InterfaceFont.board.load()
     defer { [textFont, boardFont].compactMap(\.self).forEach(UnloadFont) }
 
@@ -144,7 +143,8 @@ struct AmtrakStatusApp: ParsableCommand {
       model: model,
       script: boardScript,
       picker: StationPicker(script: pickerScript, font: textFont),
-      textFont: textFont
+      textFont: textFont,
+      boardFont: boardFont
     )
 
     while !WindowShouldClose(), !screen.shouldQuit {

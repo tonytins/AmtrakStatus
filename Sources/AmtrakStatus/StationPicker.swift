@@ -109,10 +109,12 @@ final class StationPicker {
         }
         if let choice = choose(typedCode: text) { return choice }
       case .pressed(let control):
-        guard let choice = StationChoice(
-          presetControl: control,
-          name: view.text(named: control) ?? control
-        ) else { continue }
+        guard
+          let choice = StationChoice(
+            presetControl: control,
+            name: view.text(named: control) ?? control
+          )
+        else { continue }
         close()
         return choice
       case .submitted(Self.codeField, let text):

@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.3.120
+
+- The split-flap tiles now use [B612 Mono](https://github.com/polarsys/b612), a typeface made for cockpit displays, and have rounded corners. A flap rounds only its outer edge, so the hinge stays straight while it falls.
+
 ## 0.3.119
 
 - The header, headings, footer, and station picker now use [Overpass](https://github.com/RedHatOfficial/Overpass) instead of raylib's built-in font. The split-flap tiles keep theirs for now.
