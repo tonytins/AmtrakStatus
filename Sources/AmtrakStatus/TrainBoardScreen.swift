@@ -44,7 +44,7 @@ final class TrainBoardScreen {
     model.update(now: now)
     view.setWindowSize(Vector2(x: Float(GetScreenWidth()), y: Float(GetScreenHeight())))
     showModel(now: now)
-    showRows(at: time)
+    showRows(at: time, now: now)
   }
 
   func draw(at time: Double) {
@@ -95,12 +95,12 @@ final class TrainBoardScreen {
     }
   }
 
-  private func showRows(at time: Double) {
+  private func showRows(at time: Double, now: Date) {
     let rowsHeight = view.bounds(named: "rows", at: .zero)?.height ?? 0
     rowCount = SplitFlapMetrics.rowCount(forHeight: Int(rowsHeight))
 
     let columns = BoardColumn.allCases
-    let rowText = BoardRowText(timeZone: model.timeZone, dates: dates)
+    let rowText = BoardRowText(timeZone: model.timeZone, now: now, dates: dates)
     let text = (0..<rowCount).map { index in
       columns.map { column in
         index < model.rows.count

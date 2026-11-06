@@ -49,9 +49,9 @@
   <FormattedText name="boardPanel" x="16" y="144" width="1168" height="526" style="boardPanel"
                  edgeOffsetLeft="16" edgeOffsetRight="16" edgeOffsetTop="144" edgeOffsetBottom="90"/>
 
-  <Text name="headingTime" x="21" y="155" width="112" height="14" style="heading" text="SCHED. TIME"/>
-  <Text name="headingNumber" x="153" y="155" width="70" height="14" style="heading" text="NUMBER"/>
-  <Text name="headingTrain" x="243" y="155" width="330" height="14" style="heading" text="TRAIN"/>
+  <Text name="headingTime" x="21" y="155" width="124" height="14" style="heading" text="SCHED. TIME"/>
+  <Text name="headingNumber" x="165" y="155" width="70" height="14" style="heading" text="NUMBER"/>
+  <Text name="headingTrain" x="255" y="155" width="318" height="14" style="heading" text="TRAIN"/>
   <Text name="headingDestination" x="593" y="155" width="300" height="14" style="heading" text="TO"/>
   <Text name="headingEarly" x="0" y="155" width="84" height="14" edgeOffsetRight="119"
         style="heading" text="(E)ARLY"/>
@@ -63,9 +63,9 @@
   <Region name="rows" x="16" y="186" width="1168" height="484" style="rows"
           edgeOffsetLeft="16" edgeOffsetRight="16" edgeOffsetTop="186" edgeOffsetBottom="90"/>
 
-  <Region name="columnTime" x="19" y="186" width="112" height="46" style="flap"/>
-  <Region name="columnNumber" x="151" y="186" width="70" height="46" style="flap"/>
-  <Region name="columnTrain" x="241" y="186" width="330" height="46" style="flapWide"/>
+  <Region name="columnTime" x="19" y="186" width="124" height="46" style="flap"/>
+  <Region name="columnNumber" x="163" y="186" width="70" height="46" style="flap"/>
+  <Region name="columnTrain" x="253" y="186" width="318" height="46" style="flapWide"/>
   <Region name="columnDestination" x="591" y="186" width="390" height="46" style="flapWide"
           edgeOffsetLeft="591" edgeOffsetRight="219"/>
   <Region name="columnEarly" x="0" y="186" width="84" height="46" edgeOffsetRight="119" style="flap"/>

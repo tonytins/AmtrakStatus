@@ -143,7 +143,7 @@ struct AmtrakStatusApp: ParsableCommand {
 
     switch results.collect().first {
     case .loaded(_, let rows, let timeZone, let unavailableTrains):
-      for line in BoardText.lines(for: rows, timeZone: timeZone) {
+      for line in BoardText.lines(for: rows, timeZone: timeZone, now: Date()) {
         print(line)
       }
       if !unavailableTrains.isEmpty {

@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.3.111
+
+- Times are now 24-hour, such as `19:09`, on the board, the clock, the update line, and `--print`.
+- Times on another day than today at the station show the weekday where AM or PM used to be, such as `09:07 FRI`, so tomorrow's trains no longer look like today's. A late train from yesterday shows yesterday's weekday. The weekday follows the clock, so it appears at midnight without waiting for the next update.
+- The time column is one tile wider, and the Train column one tile narrower.
+
 ## 0.3.110
 
 - The clock's label now reads `STATION TIME` instead of `LOCAL TIME`, since it has always shown the time at the station rather than on your computer.

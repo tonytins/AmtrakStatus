@@ -6,12 +6,20 @@ import Foundation
 struct BoardDateFormatting {
   private let isoFormatter = ISO8601DateFormatter()
 
-  // A fixed format, because the system's short time style puts a narrow no-break space
-  // before AM or PM on current systems, and raylib's default font cannot draw it.
+  // A fixed 24-hour format, such as "09:07". Every time is five characters, so colons line up
+  // on the board, and it doesn't follow the system's style, which can use characters raylib's
+  // default font cannot draw.
   private let timeFormatter: DateFormatter = {
     let formatter = DateFormatter()
     formatter.locale = Locale(identifier: "en_US_POSIX")
-    formatter.dateFormat = "h:mm a"
+    formatter.dateFormat = "HH:mm"
+    return formatter
+  }()
+
+  private let weekdayFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.dateFormat = "EEE"
     return formatter
   }()
 
@@ -25,10 +33,10 @@ struct BoardDateFormatting {
     return timeFormatter.string(from: date)
   }
 
-  /// Returns a time padded so its colon stays in the same tile for one- and two-digit hours.
-  func boardTime(of date: Date, in zone: TimeZone?) -> String {
-    let time = time(of: date, in: zone)
-    return time.count < 8 ? " " + time : time
+  /// Returns the short weekday name, such as "Tue".
+  func weekday(of date: Date, in zone: TimeZone?) -> String {
+    weekdayFormatter.timeZone = zone ?? .current
+    return weekdayFormatter.string(from: date)
   }
 
   func punctuality(actual: String?, scheduled: String?) -> LateTrain {
