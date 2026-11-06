@@ -6,6 +6,7 @@ import Logging
 enum InterfaceDocumentError: LocalizedError, Equatable {
   case notFound(document: String)
   case missingControls(document: String, names: [String])
+  case missingFont(name: String)
 
   var errorDescription: String? {
     switch self {
@@ -13,6 +14,8 @@ enum InterfaceDocumentError: LocalizedError, Equatable {
       "The interface document \(document).xml is missing from the app's resources."
     case .missingControls(let document, let names):
       "\(document).xml has no control named \(names.joined(separator: ", "))."
+    case .missingFont(let name):
+      "The font \(name).ttf is missing from the app's resources."
     }
   }
 }
@@ -21,22 +24,25 @@ enum InterfaceDocumentError: LocalizedError, Equatable {
 enum InterfaceDocument {
   private static let logger = Logger(label: "com.tonybark.AmtrakStatus")
 
-  /// Finds a document, in a package's `Interface` folder if it has one, and otherwise in the
-  /// resource bundle SwiftPM builds for `swift run` and `swift test`.
+  /// Finds a file in the `Interface` folder, such as a document or a font: in a package's
+  /// `Interface` folder if it has one, and otherwise in the resource bundle SwiftPM builds for
+  /// `swift run` and `swift test`.
   ///
   /// Packages don't carry that bundle: on macOS, `Bundle.module` looks for it in the root of the
   /// `.app`, where code signing doesn't allow it. `folder` defaults to the executable's folder,
   /// or `Contents/Resources` in a Mac app.
   static func location(
     named name: String,
+    withExtension fileExtension: String = "xml",
     packagedIn folder: URL? = Bundle.main.resourceURL
   ) -> URL? {
-    if let packaged = folder?.appendingPathComponent("Interface/\(name).xml"),
+    if let packaged = folder?.appendingPathComponent("Interface/\(name).\(fileExtension)"),
       FileManager.default.fileExists(atPath: packaged.path)
     {
       return packaged
     }
-    return Bundle.module.url(forResource: name, withExtension: "xml", subdirectory: "Interface")
+    return Bundle.module.url(
+      forResource: name, withExtension: fileExtension, subdirectory: "Interface")
   }
 
   /// Loads a document and checks that it has every control the app depends on.

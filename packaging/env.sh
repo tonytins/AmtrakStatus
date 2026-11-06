@@ -51,8 +51,8 @@ build_app() {
     export BIN VERSION
 }
 
-# Puts what a user needs in a folder: the app, its interface documents (only the files git tracks,
-# so nothing local slips in), the readme, the changelog, and the licences.
+# Puts what a user needs in a folder: the app, its interface documents and fonts (only the files git
+# tracks, so nothing local slips in), the readme, the changelog, and the licence.
 stage() {
     local dest="$1" file
     rm -rf "$dest"
@@ -61,13 +61,13 @@ stage() {
     while IFS= read -r file; do
         cp "$ROOT/$file" "$dest/Interface/"
     done < <(git -C "$ROOT" ls-files Sources/AmtrakStatus/Interface)
-    for file in README.md changelog.md LICENSE ASSET-LICENSE; do
+    for file in README.md changelog.md LICENSE; do
         cp "$ROOT/$file" "$dest/"
     done
 }
 
-# Checks a staged app runs: its version, and its interface documents with no window. If the package
-# lost its documents, the app would still find the ones in this machine's build folder, so where
+# Checks a staged app runs: its version, and its interface documents and fonts with no window. If
+# the package lost them, the app would still find the ones in this machine's build folder, so where
 # they were found is checked too.
 smoke_test() {
     local exe="$1" found
@@ -76,6 +76,8 @@ smoke_test() {
     found="$("$exe" --check-interface)" || fail "the packaged app couldn't load its interface."
     [[ "$found" == *board.xml* && "$found" == *station-picker.xml* ]] \
         || fail "the packaged app didn't report its interface documents:"$'\n'"$found"
+    [[ "$found" == *B612Mono-Bold.ttf* && "$found" == *Overpass-Regular.ttf* ]] \
+        || fail "the packaged app didn't report its fonts:"$'\n'"$found"
     [[ "$found" != */.build/* ]] \
         || fail "the packaged app used the build's interface documents, not its own:"$'\n'"$found"
 }

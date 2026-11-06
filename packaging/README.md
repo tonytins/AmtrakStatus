@@ -27,11 +27,12 @@ other dependencies may need changes to build on those systems.
 
 - the app;
 - `Interface/`, only the files git tracks, which the app finds beside itself (in
-  `Contents/Resources` in the Mac app);
-- the readme, the changelog, and the licences (`LICENSE` and `ASSET-LICENSE`).
+  `Contents/Resources` in the Mac app). It holds the interface documents, the fonts, and the
+  fonts' licences;
+- the readme, the changelog, and the licence (`LICENSE`).
 
 Each script then runs the staged app: its version, and `--check-interface`, which loads the
-interface documents with no window and prints where it found them. The app falls back to the
+interface documents and finds the fonts with no window, and prints where it found them. The app falls back to the
 `.build` folder it was built in, so the check also fails if the documents came from there. Tools
 are downloaded only at pinned versions, and a file whose SHA-256 isn't the published one is refused.
 

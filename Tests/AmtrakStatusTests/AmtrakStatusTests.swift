@@ -956,6 +956,37 @@ func unknownDocumentHasNoLocation() {
   #expect(InterfaceDocument.location(named: "nonexistent", packagedIn: nil) == nil)
 }
 
+@Test(
+  "Every font is in the interface folder, as TrueType, with its licence",
+  arguments: InterfaceFont.allCases)
+func fontsAreBundled(font: InterfaceFont) throws {
+  let location = try #require(font.location)
+  #expect(location.pathExtension == "ttf")
+  // TrueType files start with the version 1.0 tag.
+  let header = try FileHandle(forReadingFrom: location).read(upToCount: 4)
+  #expect(header == Data([0x00, 0x01, 0x00, 0x00]))
+
+  let family = String(font.rawValue.prefix { $0 != "-" })
+  let licence = location.deletingLastPathComponent().appendingPathComponent("OFL-\(family).txt")
+  let text = try String(contentsOf: licence, encoding: .utf8)
+  #expect(text.contains("SIL Open Font License, Version 1.1"))
+}
+
+@Test("A package's fonts come before SwiftPM's resource bundle")
+func packagedFontIsPreferred() throws {
+  let folder = FileManager.default.temporaryDirectory
+    .appendingPathComponent(UUID().uuidString)
+  defer { try? FileManager.default.removeItem(at: folder) }
+  let interface = folder.appendingPathComponent("Interface")
+  try FileManager.default.createDirectory(at: interface, withIntermediateDirectories: true)
+  let packaged = interface.appendingPathComponent("B612Mono-Bold.ttf")
+  try Data([0x00, 0x01, 0x00, 0x00]).write(to: packaged)
+
+  let found = InterfaceDocument.location(
+    named: "B612Mono-Bold", withExtension: "ttf", packagedIn: folder)
+  #expect(found?.path == packaged.path)
+}
+
 @Test("A document missing a required control is refused")
 func missingControlIsRefused() {
   #expect(

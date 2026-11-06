@@ -37,7 +37,10 @@ struct AmtrakStatusApp: ParsableCommand {
 
   @Flag(
     name: .long,
-    help: "Check the interface documents, print where they were found, and exit without a window."
+    help: """
+      Check the interface documents and fonts, print where they were found, and exit without a \
+      window.
+      """
   )
   var checkInterface = false
 
@@ -99,6 +102,12 @@ struct AmtrakStatusApp: ParsableCommand {
       for name in ["board", "station-picker"] {
         print(InterfaceDocument.location(named: name)?.path ?? "")
       }
+      for font in InterfaceFont.allCases {
+        guard let location = font.location else {
+          throw InterfaceDocumentError.missingFont(name: font.rawValue)
+        }
+        print(location.path)
+      }
       return
     }
 
@@ -118,6 +127,10 @@ struct AmtrakStatusApp: ParsableCommand {
       "Amtrak Status - \(model.stationName)"
     )
     defer { CloseWindow() }
+
+    // Not drawn with yet: the board and picker take these up in the next steps.
+    let fonts = InterfaceFont.allCases.compactMap { $0.load() }
+    defer { fonts.forEach(UnloadFont) }
 
     if let minimumSize = boardScript.window.minSize {
       SetWindowMinSize(Int(minimumSize.width), Int(minimumSize.height))

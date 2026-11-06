@@ -30,11 +30,16 @@ The layout, colors, text, and station presets live in [`Sources/AmtrakStatus/Int
 - [`board.xml`](Sources/AmtrakStatus/Interface/board.xml) is the status board. A column's `<Region>` sets where its split-flap tiles go and how many fit, and its style sets their font size and colors.
 - [`station-picker.xml`](Sources/AmtrakStatus/Interface/station-picker.xml) is the picker. A button named `preset.<CODE>` adds a station, and its text can be any label. The board's header uses Amtraker's name for the station once it loads.
 
-SwiftPM copies these files into a resource bundle next to the executable, so keep the two together when moving a build you made yourself. Packages carry them in a plain `Interface` folder instead. `AmtrakStatus --check-interface` checks the documents and prints where it found them, without opening a window.
+SwiftPM copies these files into a resource bundle next to the executable, so keep the two together when moving a build you made yourself. Packages carry them in a plain `Interface` folder instead. The fonts sit beside them. Hudini's UIScript can't name a font yet, so they're chosen in [`InterfaceFont.swift`](Sources/AmtrakStatus/InterfaceFont.swift) for now. `AmtrakStatus --check-interface` checks the documents and fonts and prints where it found them, without opening a window.
 
 ## ⚖️ License
 
 I license this project under the GPL-3.0 license - see [LICENSE](LICENSE) for details.
+
+The fonts are under the [SIL Open Font License 1.1](https://openfontlicense.org), each with its licence beside it in [`Sources/AmtrakStatus/Interface`](Sources/AmtrakStatus/Interface):
+
+- [B612 Mono](https://github.com/polarsys/b612), by the B612 Project Authors, on the split-flap tiles.
+- [Overpass](https://github.com/RedHatOfficial/Overpass), by the Overpass Project Authors, for everything else.
 
 ## ⚠️ Disclaimer
 
