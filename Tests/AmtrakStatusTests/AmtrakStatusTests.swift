@@ -1,8 +1,8 @@
-import AmtrakClient
 import Foundation
 import Hudini
 import Testing
 
+@testable import AmtrakClient
 @testable import AmtrakStatus
 
 // MARK: - Helpers
@@ -144,6 +144,120 @@ func nullArrivalIsUnknown() throws {
 func punctuality(arrival: String, expected: LateTrain) throws {
   let row = try #require(rows([train(arr: "\"\(arrival)\"")]).first)
   #expect(row.punctuality == expected)
+}
+
+// MARK: - Response cache
+
+/// Runs `body` with a cache in a new temporary folder, and deletes the folder afterward.
+private func withCache(_ body: (ResponseCache) throws -> Void) throws {
+  let folder = FileManager.default.temporaryDirectory
+    .appendingPathComponent("AmtrakStatusTests-\(UUID().uuidString)", isDirectory: true)
+  defer { try? FileManager.default.removeItem(at: folder) }
+  try body(ResponseCache(directory: folder))
+}
+
+private let trainURL = URL(string: "https://api.amtraker.com/v3/trains/67")!
+
+@Test("A saved response comes back with the time it was fetched")
+func cacheRoundTrip() throws {
+  try withCache { cache in
+    let before = Date().addingTimeInterval(-2)
+    try cache.save(Data("{\"67\":[]}".utf8), for: trainURL)
+    let entry = try #require(try cache.entry(for: trainURL))
+    #expect(entry.data == Data("{\"67\":[]}".utf8))
+    #expect(entry.fetchedAt >= before && entry.fetchedAt <= Date().addingTimeInterval(2))
+  }
+}
+
+@Test("A URL with nothing saved has no entry, even before the folder exists")
+func cacheMiss() throws {
+  try withCache { cache in
+    #expect(try cache.entry(for: trainURL) == nil)
+    try cache.save(Data("[]".utf8), for: trainURL)
+    #expect(try cache.entry(for: URL(string: "https://api.amtraker.com/v3/trains/6")!) == nil)
+  }
+}
+
+@Test("A file name keeps the URL readable and safe for every platform")
+func cacheFileName() {
+  let cache = ResponseCache(directory: URL(fileURLWithPath: "/cache"))
+  #expect(cache.file(for: trainURL).lastPathComponent == "api.amtraker.com%2Fv3%2Ftrains%2F67.json")
+}
+
+@Test("Each URL gets its own file, directly in the cache folder")
+func cacheFileNames() throws {
+  try withCache { cache in
+    let urls = [
+      "https://api.amtraker.com/v3/trains/67",
+      "https://api.amtraker.com/v3/trains/6",
+      "https://api.amtraker.com/v3/trains_67",
+      "https://api.amtraker.com/v3/stations/ASD",
+      "https://api.amtraker.com/v3/stale",
+    ].map { URL(string: $0)! }
+    for (index, url) in urls.enumerated() {
+      try cache.save(Data("\(index)".utf8), for: url)
+    }
+    for (index, url) in urls.enumerated() {
+      #expect(try cache.entry(for: url)?.data == Data("\(index)".utf8))
+    }
+    let files = try FileManager.default.contentsOfDirectory(atPath: cache.directory.path)
+    #expect(files.count == urls.count)
+  }
+}
+
+@Test("Saving again replaces the response and its date")
+func cacheReplaces() throws {
+  try withCache { cache in
+    try cache.save(Data("old".utf8), for: trainURL)
+    try age(trainURL, in: cache, by: 60 * 60)
+    try cache.save(Data("new".utf8), for: trainURL)
+    let entry = try #require(try cache.entry(for: trainURL))
+    #expect(entry.data == Data("new".utf8))
+    #expect(entry.fetchedAt > Date().addingTimeInterval(-60))
+  }
+}
+
+@Test("Old responses are deleted, and newer ones and other files are kept")
+func cachePrunes() throws {
+  try withCache { cache in
+    let stationURL = URL(string: "https://api.amtraker.com/v3/stations/ASD")!
+    try cache.save(Data("old".utf8), for: trainURL)
+    try cache.save(Data("new".utf8), for: stationURL)
+    try age(trainURL, in: cache, by: 3 * 24 * 60 * 60)
+    let other = cache.directory.appendingPathComponent("notes.txt")
+    try Data("keep".utf8).write(to: other)
+    try FileManager.default.setAttributes(
+      [.modificationDate: Date.distantPast], ofItemAtPath: other.path)
+
+    let twoDaysAgo = Date().addingTimeInterval(-2 * 24 * 60 * 60)
+    let removed = try cache.removeEntries(fetchedBefore: twoDaysAgo)
+    #expect(removed == 1)
+    #expect(try cache.entry(for: trainURL) == nil)
+    #expect(try cache.entry(for: stationURL)?.data == Data("new".utf8))
+    #expect(FileManager.default.fileExists(atPath: other.path))
+  }
+}
+
+@Test("Pruning a cache that was never written does nothing")
+func cachePrunesNothing() throws {
+  try withCache { cache in
+    let removed = try cache.removeEntries(fetchedBefore: Date())
+    #expect(removed == 0)
+  }
+}
+
+@Test("The standard cache folder is named for the app, inside this user's cache folder")
+func cacheStandardFolder() throws {
+  let folder = try #require(ResponseCache.standardDirectory(named: "AmtrakStatus"))
+  #expect(folder.lastPathComponent == "AmtrakStatus")
+}
+
+/// Moves the saved response for `url` back in time by `seconds`.
+private func age(_ url: URL, in cache: ResponseCache, by seconds: TimeInterval) throws {
+  let fetchedAt = try #require(try cache.entry(for: url)).fetchedAt
+  try FileManager.default.setAttributes(
+    [.modificationDate: fetchedAt.addingTimeInterval(-seconds)],
+    ofItemAtPath: cache.file(for: url).path)
 }
 
 // MARK: - Rows
