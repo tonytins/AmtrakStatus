@@ -1,8 +1,11 @@
 import Foundation
+import Logging
 
 /// The board's state. The render loop owns it and calls `update(now:)` once per frame, which
 /// starts refreshes on background tasks and applies whatever they have finished.
 final class TrainBoardModel {
+  private static let logger = Logger(label: "com.tonybark.AmtrakStatus")
+
   private struct Delivery: Sendable {
     let selection: Int
     let update: BoardUpdate
@@ -123,7 +126,11 @@ final class TrainBoardModel {
 
   private func apply(_ update: BoardUpdate) {
     switch update {
-    case .loaded(let stationName, let rows, let timeZone, let problem, let fetchedAt):
+    case .loaded(
+      let stationName, let rows, let timeZone, let problem, let fetchedAt, let reportedTrainIDs):
+      if let reportedTrainIDs {
+        logVanished(TrainStatusRows.vanished(from: self.rows, reported: reportedTrainIDs))
+      }
       self.stationName = stationName ?? self.stationName
       self.rows = rows
       self.timeZone = timeZone ?? self.timeZone
@@ -140,6 +147,20 @@ final class TrainBoardModel {
     case .failed(let message):
       problem = message
       statusMessage = message
+    }
+  }
+
+  /// Notes trains that left the board because Amtraker stopped reporting them, not because
+  /// they departed, so how often that happens can be seen with `--verbose`.
+  private func logVanished(_ rows: [TrainStatusRow]) {
+    for row in rows {
+      let due = row.scheduledArrival.map { dates.time(of: $0, in: timeZone) } ?? "no time"
+      Self.logger.info(
+        """
+        Train \(row.trainNum) (\(row.trainID)), due \(due) at \(stationCode), is no longer \
+        reported by Amtraker and never departed
+        """
+      )
     }
   }
 }

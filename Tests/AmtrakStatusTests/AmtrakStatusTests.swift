@@ -477,6 +477,18 @@ func staleTimesAreMilliseconds(timeSince: Double, isShown: Bool) throws {
   #expect(shown.isEmpty != isShown)
 }
 
+@Test("A train vanishes when Amtraker stops reporting it, not when it departs")
+func vanishedTrains() throws {
+  let staying = try #require(rows([train(id: "67-3", number: "67")]).first)
+  let leaving = try #require(rows([train(id: "1099-5", number: "1099")]).first)
+  // 1099 departed: its row is gone, but Amtraker still reports it.
+  let reported: Set = ["67-3", "1099-5"]
+  #expect(TrainStatusRows.vanished(from: [staying, leaving], reported: reported).isEmpty)
+  // 1099 is gone from Amtraker's data.
+  #expect(TrainStatusRows.vanished(from: [staying, leaving], reported: ["67-3"]) == [leaving])
+  #expect(TrainStatusRows.vanished(from: [], reported: []).isEmpty)
+}
+
 @Test(
   "The look-ahead uses the estimate, and falls back to the schedule",
   arguments: [
@@ -511,7 +523,7 @@ func modelLookAhead() async throws {
     StubLoader(updates: [
       "ASD": .loaded(
         stationName: nil, rows: [later], timeZone: newYork, problem: nil,
-        fetchedAt: beforeTheTrain)
+        fetchedAt: beforeTheTrain, reportedTrainIDs: nil)
     ]),
     lookAheadHours: 6)
   try await pump(board) { !board.rows.isEmpty }
@@ -530,7 +542,7 @@ func lookAheadMessage(hours: Int?, expected: String) async throws {
     StubLoader(updates: [
       "ASD": .loaded(
         stationName: nil, rows: hours == nil ? [] : [tomorrow], timeZone: newYork,
-        problem: nil, fetchedAt: beforeTheTrain)
+        problem: nil, fetchedAt: beforeTheTrain, reportedTrainIDs: nil)
     ]),
     lookAheadHours: hours)
   try await pump(board) { board.lastUpdatedAt != nil }
@@ -543,7 +555,7 @@ func refreshApplies() async throws {
     StubLoader(updates: [
       "ASD": .loaded(
         stationName: nil, rows: [sampleRow], timeZone: newYork, problem: nil,
-        fetchedAt: beforeTheTrain)
+        fetchedAt: beforeTheTrain, reportedTrainIDs: nil)
     ]))
   try await pump(board) { !board.rows.isEmpty }
   #expect(board.rows == [sampleRow])
@@ -557,7 +569,7 @@ func firstRefreshReusesCache() async throws {
   let board = model(loader)
   let loaded = BoardUpdate.loaded(
     stationName: nil, rows: [sampleRow], timeZone: newYork, problem: nil,
-    fetchedAt: beforeTheTrain)
+    fetchedAt: beforeTheTrain, reportedTrainIDs: nil)
 
   board.update(now: beforeTheTrain)
   try await waitForRequests(loader, count: 1)
@@ -586,7 +598,7 @@ func cachedDataIsDated() async throws {
   await loader.releaseFirst(
     with: .loaded(
       stationName: nil, rows: [sampleRow], timeZone: newYork, problem: nil,
-      fetchedAt: fetchedAt))
+      fetchedAt: fetchedAt, reportedTrainIDs: nil))
   try await pump(board) { !board.rows.isEmpty }
   #expect(board.lastUpdatedAt == fetchedAt)
   #expect(board.updateSummary == "UPDATED 05:51")
@@ -608,7 +620,7 @@ func failureKeepsRows() async throws {
   await loader.releaseFirst(
     with: .loaded(
       stationName: "ASHLAND, VA", rows: [sampleRow], timeZone: newYork, problem: nil,
-      fetchedAt: beforeTheTrain))
+      fetchedAt: beforeTheTrain, reportedTrainIDs: nil))
   try await pump(board) { !board.rows.isEmpty }
 
   board.update(now: beforeTheTrain.addingTimeInterval(601))
@@ -627,7 +639,7 @@ func typedStationTakesName() async throws {
     StubLoader(updates: [
       "NYP": .loaded(
         stationName: "NEW YORK PENN, NY", rows: [sampleRow], timeZone: newYork,
-        problem: nil, fetchedAt: beforeTheTrain)
+        problem: nil, fetchedAt: beforeTheTrain, reportedTrainIDs: nil)
     ]))
   let choice = try #require(StationChoice(typedCode: "nyp"))
   board.selectStation(code: choice.code, named: choice.name)
@@ -643,7 +655,7 @@ func missingNameKeepsCurrentName() async throws {
     StubLoader(updates: [
       "ASD": .loaded(
         stationName: nil, rows: [sampleRow], timeZone: newYork, problem: nil,
-        fetchedAt: beforeTheTrain)
+        fetchedAt: beforeTheTrain, reportedTrainIDs: nil)
     ]))
   try await pump(board) { !board.rows.isEmpty }
   #expect(board.stationName == "ASHLAND, VA")
@@ -663,7 +675,7 @@ func partialFailureIsReported() async throws {
     StubLoader(updates: [
       "ASD": .loaded(
         stationName: nil, rows: [sampleRow], timeZone: newYork, problem: "TRAIN 1124 UNAVAILABLE",
-        fetchedAt: beforeTheTrain)
+        fetchedAt: beforeTheTrain, reportedTrainIDs: nil)
     ]))
   try await pump(board) { !board.rows.isEmpty }
   #expect(board.problem == "TRAIN 1124 UNAVAILABLE")
@@ -691,7 +703,7 @@ func staleSelectionIsDropped() async throws {
   await loader.releaseFirst(
     with: .loaded(
       stationName: "ASHLAND, VA", rows: [sampleRow], timeZone: newYork, problem: nil,
-      fetchedAt: beforeTheTrain))
+      fetchedAt: beforeTheTrain, reportedTrainIDs: nil))
   try await Task.sleep(for: .milliseconds(50))
   board.update(now: beforeTheTrain)
   #expect(board.rows.isEmpty)

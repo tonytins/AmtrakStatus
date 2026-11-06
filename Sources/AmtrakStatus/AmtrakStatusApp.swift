@@ -154,7 +154,7 @@ struct AmtrakStatusApp: ParsableCommand {
     finished.wait()
 
     switch results.collect().first {
-    case .loaded(_, let rows, let timeZone, let problem, let fetchedAt):
+    case .loaded(_, let rows, let timeZone, let problem, let fetchedAt, _):
       let now = Date()
       let shown = TrainStatusRows.due(rows, within: hours, of: now)
       for line in BoardText.lines(for: shown, timeZone: timeZone, now: now) {

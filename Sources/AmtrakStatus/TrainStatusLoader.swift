@@ -10,13 +10,16 @@ import Logging
 enum BoardUpdate: Equatable, Sendable {
   /// New rows. `stationName` is `nil` when Amtraker gave no usable name, `problem` says what
   /// is missing or old when anything is, and `fetchedAt` is when the oldest of the data was
-  /// fetched, which is earlier than now when it came from the cache.
+  /// fetched, which is earlier than now when it came from the cache. `reportedTrainIDs` holds
+  /// every train ID Amtraker reported for the station, departed or not, or `nil` when some
+  /// trains couldn't be read, so the list is incomplete.
   case loaded(
     stationName: String?,
     rows: [TrainStatusRow],
     timeZone: TimeZone?,
     problem: String?,
-    fetchedAt: Date
+    fetchedAt: Date,
+    reportedTrainIDs: Set<String>?
   )
   /// Amtraker does not know the station.
   case stationNotFound(code: String)
@@ -81,7 +84,8 @@ struct AmtrakerStatusLoader: TrainStatusLoading {
         rows: rows,
         timeZone: lookup.timeZone,
         problem: Self.problem(unavailableTrains: unavailableTrains, record: record),
-        fetchedAt: record.oldest ?? Date()
+        fetchedAt: record.oldest ?? Date(),
+        reportedTrainIDs: unavailableTrains.isEmpty ? Set(trains.map(\.trainID)) : nil
       )
     } catch AmtrakError.stationNotFound(let code) {
       Self.logger.error("Station \(code) was not found")
@@ -198,6 +202,14 @@ enum TrainStatusRows {
     return rows.filter { row in
       (row.estimatedArrival ?? row.scheduledArrival).map { $0 <= end } ?? true
     }
+  }
+
+  /// Returns the rows in `previous` whose trains Amtraker no longer reports at all. A train that
+  /// departs is still reported, so these left the board without departing.
+  static func vanished(from previous: [TrainStatusRow], reported: Set<String>)
+    -> [TrainStatusRow]
+  {
+    previous.filter { !reported.contains($0.trainID) }
   }
 
   /// Returns the day of the month a run started from Amtraker's train ID, such as 3 for `67-3`,

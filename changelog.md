@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.3.117
+
+- With `--verbose`, the app logs a train that leaves the board because Amtraker stopped reporting it, rather than because it departed, such as `Train 9999 (9999-5), due 09:07 at ASD, is no longer reported by Amtraker and never departed`. This shows how often Amtraker drops trains before anything is built to hold on to them.
+
 ## 0.3.116
 
 - When Amtraker can't be reached or sends something unreadable, the board shows the last saved data instead, however old, and the footer says so, such as `COULD NOT REACH AMTRAKER  /  SHOWING DATA FROM 17:47`. This works after a restart too. `--print` writes the same note, with the fetch time, to standard error.
