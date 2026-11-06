@@ -43,10 +43,11 @@ private func rowText(in zone: TimeZone? = newYork, now: Date = beforeTheTrain) -
   BoardRowText(timeZone: zone, now: now, dates: BoardDateFormatting())
 }
 
-private func row(arriving iso: String) -> TrainStatusRow {
+private func row(arriving iso: String, estimate: String? = nil) -> TrainStatusRow {
   TrainStatusRow(
-    trainID: "67-3", scheduledArrival: date(iso), trainNum: "67",
-    service: "Northeast Regional", destination: "Newport News", punctuality: .unknown)
+    trainID: "67-3", scheduledArrival: date(iso), estimatedArrival: estimate.map(date),
+    trainNum: "67", service: "Northeast Regional", destination: "Newport News",
+    punctuality: .unknown)
 }
 
 private func rows(
@@ -79,11 +80,15 @@ private actor GatedLoader: TrainStatusLoading {
   }
 }
 
-private func model(_ loader: any TrainStatusLoading) -> TrainBoardModel {
+private func model(
+  _ loader: any TrainStatusLoading,
+  lookAheadHours: Int? = nil
+) -> TrainBoardModel {
   TrainBoardModel(
     stationCode: "ASD",
     stationName: "ASHLAND, VA",
     refreshInterval: 600,
+    lookAheadHours: lookAheadHours,
     loader: loader
   )
 }
@@ -262,7 +267,63 @@ func staleTimesAreMilliseconds(timeSince: Double, isShown: Bool) throws {
   #expect(shown.isEmpty != isShown)
 }
 
+@Test(
+  "The look-ahead uses the estimate, and falls back to the schedule",
+  arguments: [
+    // The board's time is 06:00 on November 4, so a 6-hour look-ahead ends at 12:00.
+    ("2026-11-04T11:59:00-05:00", nil, true),
+    ("2026-11-04T12:01:00-05:00", nil, false),
+    // A train running early comes into the window, and a late one leaves it.
+    ("2026-11-04T13:00:00-05:00", "2026-11-04T11:30:00-05:00", true),
+    ("2026-11-04T11:00:00-05:00", "2026-11-04T13:00:00-05:00", false),
+    // An overdue train that hasn't departed stays.
+    ("2026-11-03T22:00:00-05:00", "2026-11-04T05:00:00-05:00", true),
+  ] as [(String, String?, Bool)])
+func lookAhead(scheduled: String, estimate: String?, isShown: Bool) {
+  let due = TrainStatusRows.due(
+    [row(arriving: scheduled, estimate: estimate)], within: 6, of: beforeTheTrain)
+  #expect(due.isEmpty != isShown)
+}
+
+@Test("Without a look-ahead, or without times, every row stays")
+func lookAheadKeeps() {
+  let tomorrow = row(arriving: "2026-11-05T09:07:00-05:00")
+  #expect(TrainStatusRows.due([tomorrow], within: nil, of: beforeTheTrain) == [tomorrow])
+  #expect(TrainStatusRows.due([sampleRow], within: 1, of: beforeTheTrain) == [sampleRow])
+}
+
 // MARK: - Model
+
+@Test("The board shows rows as they come into the look-ahead")
+func modelLookAhead() async throws {
+  let later = row(arriving: "2026-11-04T13:00:00-05:00")
+  let board = model(
+    StubLoader(updates: [
+      "ASD": .loaded(stationName: nil, rows: [later], timeZone: newYork, unavailableTrains: [])
+    ]),
+    lookAheadHours: 6)
+  try await pump(board) { !board.rows.isEmpty }
+  #expect(board.shownRows(now: beforeTheTrain).isEmpty)
+  #expect(board.emptyMessage == "NO TRAINS IN THE NEXT 6 HOURS")
+  #expect(board.shownRows(now: date("2026-11-04T07:30:00-05:00")) == [later])
+}
+
+@Test(
+  "The empty board names the look-ahead only when it hid the trains",
+  arguments: [(1, "NO TRAINS IN THE NEXT HOUR"), (nil, "NO ACTIVE TRAINS REPORTED")]
+    as [(Int?, String)])
+func lookAheadMessage(hours: Int?, expected: String) async throws {
+  let tomorrow = row(arriving: "2026-11-05T09:07:00-05:00")
+  let board = model(
+    StubLoader(updates: [
+      "ASD": .loaded(
+        stationName: nil, rows: hours == nil ? [] : [tomorrow], timeZone: newYork,
+        unavailableTrains: [])
+    ]),
+    lookAheadHours: hours)
+  try await pump(board) { board.lastUpdatedAt != nil }
+  #expect(board.emptyMessage == expected)
+}
 
 @Test("A refresh reaches the model through the frame update")
 func refreshApplies() async throws {
@@ -518,6 +579,14 @@ func presetControls() {
 @Test("--station and -s take a station code", arguments: [["--station", "nyp"], ["-s", "NYP"]])
 func stationOption(arguments: [String]) throws {
   #expect(try AmtrakStatusApp.parse(arguments).station?.uppercased() == "NYP")
+}
+
+@Test(
+  "--hours takes a whole number of at least 1",
+  arguments: [("6", true), ("0", false), ("-2", false), ("1.5", false)])
+func hoursOption(value: String, isValid: Bool) {
+  let parsed = try? AmtrakStatusApp.parse(["--hours", value])
+  #expect((parsed != nil) == isValid)
 }
 
 @Test("--print and --verbose are off unless given")

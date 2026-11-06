@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.3.113
+
+- Added `--hours`, which shows only trains due within that many hours, such as `--hours 6`. A train counts by Amtraker's estimate when there is one, so a late train is judged by when it is really coming, and a late train stays until it departs. Trains come onto the board as their time nears, without waiting for an update. It also applies to `--print`.
+- When `--hours` leaves the board empty, it says so, such as `NO TRAINS IN THE NEXT 6 HOURS`.
+
 ## 0.3.112
 
 - Trains leave the board once Amtraker says they have departed the station. Before, a train that left in the morning stayed until midnight. Trains still on their way or at the platform stay.

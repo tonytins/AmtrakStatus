@@ -28,6 +28,12 @@ struct AmtrakStatusApp: ParsableCommand {
   )
   var station: String?
 
+  @Option(
+    name: .long,
+    help: "Only show trains due within this many hours. Late trains stay until they depart."
+  )
+  var hours: Int?
+
   @Flag(
     name: .long,
     help: "Check the interface documents, print where they were found, and exit without a window."
@@ -49,6 +55,9 @@ struct AmtrakStatusApp: ParsableCommand {
   func validate() throws {
     guard refreshInterval >= 600 else {
       throw ValidationError("Refresh interval must be at least 600 seconds.")
+    }
+    if let hours, hours < 1 {
+      throw ValidationError("Hours must be at least 1.")
     }
     if let station, StationChoice(typedCode: station) == nil {
       throw ValidationError("Station codes use up to 5 letters and numbers, such as NYP.")
@@ -96,6 +105,7 @@ struct AmtrakStatusApp: ParsableCommand {
       stationCode: start.code,
       stationName: start.name,
       refreshInterval: TimeInterval(refreshInterval),
+      lookAheadHours: hours,
       loader: AmtrakerStatusLoader()
     )
 
@@ -143,7 +153,9 @@ struct AmtrakStatusApp: ParsableCommand {
 
     switch results.collect().first {
     case .loaded(_, let rows, let timeZone, let unavailableTrains):
-      for line in BoardText.lines(for: rows, timeZone: timeZone, now: Date()) {
+      let now = Date()
+      let shown = TrainStatusRows.due(rows, within: hours, of: now)
+      for line in BoardText.lines(for: shown, timeZone: timeZone, now: now) {
         print(line)
       }
       if !unavailableTrains.isEmpty {

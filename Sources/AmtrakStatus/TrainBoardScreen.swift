@@ -43,8 +43,9 @@ final class TrainBoardScreen {
     handleInput()
     model.update(now: now)
     view.setWindowSize(Vector2(x: Float(GetScreenWidth()), y: Float(GetScreenHeight())))
-    showModel(now: now)
-    showRows(at: time, now: now)
+    let rows = model.shownRows(now: now)
+    showModel(now: now, hasRows: !rows.isEmpty)
+    showRows(rows, at: time, now: now)
   }
 
   func draw(at time: Double) {
@@ -77,7 +78,7 @@ final class TrainBoardScreen {
     }
   }
 
-  private func showModel(now: Date) {
+  private func showModel(now: Date, hasRows: Bool) {
     view.setText(model.stationName, named: "stationName")
     view.setText(
       "STATION \(model.stationCode)  /  LIVE TRAIN INFORMATION",
@@ -86,8 +87,8 @@ final class TrainBoardScreen {
     view.setText(model.stationTime(now: now), named: "clock")
     view.setText(model.updateSummary, named: "updateSummary")
     view.setText("VERSION \(AmtrakStatusApp.configuration.version)", named: "version")
-    view.setText(model.statusMessage, named: "statusMessage")
-    view.setHidden(!model.rows.isEmpty, named: "statusMessage")
+    view.setText(model.emptyMessage, named: "statusMessage")
+    view.setHidden(hasRows, named: "statusMessage")
 
     if shownStationName != model.stationName {
       shownStationName = model.stationName
@@ -95,7 +96,7 @@ final class TrainBoardScreen {
     }
   }
 
-  private func showRows(at time: Double, now: Date) {
+  private func showRows(_ rows: [TrainStatusRow], at time: Double, now: Date) {
     let rowsHeight = view.bounds(named: "rows", at: .zero)?.height ?? 0
     rowCount = SplitFlapMetrics.rowCount(forHeight: Int(rowsHeight))
 
@@ -103,8 +104,7 @@ final class TrainBoardScreen {
     let rowText = BoardRowText(timeZone: model.timeZone, now: now, dates: dates)
     let text = (0..<rowCount).map { index in
       columns.map { column in
-        index < model.rows.count
-          ? rowText.value(of: column, in: model.rows[index]) : column.placeholder
+        index < rows.count ? rowText.value(of: column, in: rows[index]) : column.placeholder
       }
     }
     let capacities = zip(columns, renderers).map { column, renderer in

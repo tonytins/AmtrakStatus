@@ -17,6 +17,8 @@ final class TrainBoardModel {
 
   private let loader: any TrainStatusLoading
   private let refreshInterval: TimeInterval
+  /// How many hours ahead the board shows trains, or `nil` for no limit.
+  private let lookAheadHours: Int?
   private let mailbox = Mailbox<Delivery>()
   private let dates = BoardDateFormatting()
   /// The station's time zone, once known.
@@ -30,11 +32,13 @@ final class TrainBoardModel {
     stationCode: String,
     stationName: String,
     refreshInterval: TimeInterval,
+    lookAheadHours: Int? = nil,
     loader: any TrainStatusLoading
   ) {
     self.stationCode = stationCode
     self.stationName = stationName
     self.refreshInterval = refreshInterval
+    self.lookAheadHours = lookAheadHours
     self.loader = loader
     timeZone = TimeZone(identifier: "America/New_York")
   }
@@ -42,6 +46,19 @@ final class TrainBoardModel {
   /// The current time at the station.
   func stationTime(now: Date) -> String {
     dates.time(of: now, in: timeZone)
+  }
+
+  /// The rows to show at `now`: those due within the look-ahead, soonest first.
+  func shownRows(now: Date) -> [TrainStatusRow] {
+    TrainStatusRows.due(rows, within: lookAheadHours, of: now)
+  }
+
+  /// What the board says when `shownRows(now:)` is empty. It names the look-ahead only when
+  /// that is what emptied the board.
+  var emptyMessage: String {
+    guard let lookAheadHours, !rows.isEmpty else { return statusMessage }
+    return lookAheadHours == 1
+      ? "NO TRAINS IN THE NEXT HOUR" : "NO TRAINS IN THE NEXT \(lookAheadHours) HOURS"
   }
 
   /// One line on how fresh the rows are, including anything wrong with the latest refresh.

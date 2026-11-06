@@ -153,6 +153,18 @@ enum TrainStatusRows {
     }
   }
 
+  /// Returns the rows due within `hours` of `now`, keeping their order, or every row when
+  /// `hours` is `nil`. A row counts by its estimate, or by its schedule without one, so a late
+  /// train is judged by when it is really coming. Overdue rows always stay, since a train
+  /// leaves the board only when it departs, and so do rows with no time at all.
+  static func due(_ rows: [TrainStatusRow], within hours: Int?, of now: Date) -> [TrainStatusRow] {
+    guard let hours else { return rows }
+    let end = now.addingTimeInterval(TimeInterval(hours) * 60 * 60)
+    return rows.filter { row in
+      (row.estimatedArrival ?? row.scheduledArrival).map { $0 <= end } ?? true
+    }
+  }
+
   /// Returns the day of the month a run started from Amtraker's train ID, such as 3 for `67-3`,
   /// or `nil` when the ID has no day.
   static func runDay(fromTrainID id: String) -> Int? {
