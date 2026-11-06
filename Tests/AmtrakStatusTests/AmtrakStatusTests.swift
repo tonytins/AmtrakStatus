@@ -5,6 +5,10 @@ import Testing
 @testable import AmtrakClient
 @testable import AmtrakStatus
 
+#if canImport(FoundationNetworking)
+  import FoundationNetworking
+#endif
+
 // MARK: - Helpers
 
 private func stationJSON(code: String = "ASD", arr: String, dep: String, status: String) -> String {
@@ -282,12 +286,74 @@ func clientReusesCache() async throws {
   let fetchedAt = try #require(try cache.entry(for: url)).fetchedAt
 
   // ZZZ is not a real station, so a request to Amtraker would fail rather than return this.
-  let dates = FetchDates()
-  let client = AmtrakClient(cache: cache, freshness: .reuse(maxAge: 600), fetchDates: dates)
+  let record = FetchRecord()
+  let client = AmtrakClient(cache: cache, freshness: .reuse(maxAge: 600), record: record)
   let lookup = try await client.trainStationLookup(stationCode: "ZZZ")
   #expect(lookup.name == "Cached Station")
   #expect(lookup.trainNumbers == ["67"])
-  #expect(dates.oldest == fetchedAt)
+  #expect(record.oldest == fetchedAt)
+  #expect(record.fallbackFailure == nil)
+}
+
+@Test("A failed request returns the cached response however old, and records the failure")
+func clientFallsBackToCache() async throws {
+  let folder = FileManager.default.temporaryDirectory
+    .appendingPathComponent("AmtrakStatusTests-\(UUID().uuidString)", isDirectory: true)
+  defer { try? FileManager.default.removeItem(at: folder) }
+  let cache = ResponseCache(directory: folder)
+  let url = URL(string: "https://api.amtraker.com/v3/stations/ZZZ")!
+  let station = """
+    {"ZZZ":{"name":"Saved Station","code":"ZZZ","tz":"America/New_York","bus":false,
+     "trains":["67-3"]}}
+    """
+  try cache.save(Data(station.utf8), for: url)
+  let weekAgo = Date().addingTimeInterval(-7 * 24 * 60 * 60)
+  try FileManager.default.setAttributes(
+    [.modificationDate: weekAgo], ofItemAtPath: cache.file(for: url).path)
+
+  // Asking Amtraker for ZZZ fails either way: it returns data that doesn't decode, or there is
+  // no network. The week-old copy stands in.
+  let record = FetchRecord()
+  let client = AmtrakClient(cache: cache, freshness: .fetch, record: record)
+  let lookup = try await client.trainStationLookup(stationCode: "ZZZ")
+  #expect(lookup.name == "Saved Station")
+  let oldest = try #require(record.oldest)
+  #expect(abs(oldest.timeIntervalSince(weekAgo)) < 1)
+  #expect(record.fallbackFailure != nil)
+}
+
+@Test("Without a cached copy, a failed request still fails")
+func clientFailsWithoutCache() async throws {
+  let folder = FileManager.default.temporaryDirectory
+    .appendingPathComponent("AmtrakStatusTests-\(UUID().uuidString)", isDirectory: true)
+  defer { try? FileManager.default.removeItem(at: folder) }
+  let client = AmtrakClient(cache: ResponseCache(directory: folder), freshness: .fetch)
+  await #expect(throws: (any Error).self) {
+    try await client.trainStationLookup(stationCode: "ZZZ")
+  }
+}
+
+@Test("A board's problem puts old data before unreadable trains")
+func loadedProblems() {
+  let fresh = FetchRecord()
+  #expect(AmtrakerStatusLoader.problem(unavailableTrains: [], record: fresh) == nil)
+  #expect(
+    AmtrakerStatusLoader.problem(unavailableTrains: ["1124"], record: fresh)
+      == "TRAIN 1124 UNAVAILABLE")
+  #expect(
+    AmtrakerStatusLoader.problem(unavailableTrains: ["1124", "67"], record: fresh)
+      == "2 TRAINS UNAVAILABLE")
+
+  let offline = FetchRecord()
+  offline.noteFallback(after: URLError(.notConnectedToInternet))
+  #expect(
+    AmtrakerStatusLoader.problem(unavailableTrains: ["1124"], record: offline)
+      == "COULD NOT REACH AMTRAKER")
+  let serverError = FetchRecord()
+  serverError.noteFallback(after: AmtrakError.httpStatus(503))
+  #expect(
+    AmtrakerStatusLoader.problem(unavailableTrains: [], record: serverError)
+      == "AMTRAKER RETURNED HTTP 503")
 }
 
 // MARK: - Rows
@@ -444,7 +510,7 @@ func modelLookAhead() async throws {
   let board = model(
     StubLoader(updates: [
       "ASD": .loaded(
-        stationName: nil, rows: [later], timeZone: newYork, unavailableTrains: [],
+        stationName: nil, rows: [later], timeZone: newYork, problem: nil,
         fetchedAt: beforeTheTrain)
     ]),
     lookAheadHours: 6)
@@ -464,7 +530,7 @@ func lookAheadMessage(hours: Int?, expected: String) async throws {
     StubLoader(updates: [
       "ASD": .loaded(
         stationName: nil, rows: hours == nil ? [] : [tomorrow], timeZone: newYork,
-        unavailableTrains: [], fetchedAt: beforeTheTrain)
+        problem: nil, fetchedAt: beforeTheTrain)
     ]),
     lookAheadHours: hours)
   try await pump(board) { board.lastUpdatedAt != nil }
@@ -476,7 +542,7 @@ func refreshApplies() async throws {
   let board = model(
     StubLoader(updates: [
       "ASD": .loaded(
-        stationName: nil, rows: [sampleRow], timeZone: newYork, unavailableTrains: [],
+        stationName: nil, rows: [sampleRow], timeZone: newYork, problem: nil,
         fetchedAt: beforeTheTrain)
     ]))
   try await pump(board) { !board.rows.isEmpty }
@@ -490,7 +556,7 @@ func firstRefreshReusesCache() async throws {
   let loader = GatedLoader()
   let board = model(loader)
   let loaded = BoardUpdate.loaded(
-    stationName: nil, rows: [sampleRow], timeZone: newYork, unavailableTrains: [],
+    stationName: nil, rows: [sampleRow], timeZone: newYork, problem: nil,
     fetchedAt: beforeTheTrain)
 
   board.update(now: beforeTheTrain)
@@ -519,7 +585,7 @@ func cachedDataIsDated() async throws {
   try await waitForRequests(loader, count: 1)
   await loader.releaseFirst(
     with: .loaded(
-      stationName: nil, rows: [sampleRow], timeZone: newYork, unavailableTrains: [],
+      stationName: nil, rows: [sampleRow], timeZone: newYork, problem: nil,
       fetchedAt: fetchedAt))
   try await pump(board) { !board.rows.isEmpty }
   #expect(board.lastUpdatedAt == fetchedAt)
@@ -541,7 +607,7 @@ func failureKeepsRows() async throws {
   try await waitForRequests(loader, count: 1)
   await loader.releaseFirst(
     with: .loaded(
-      stationName: "ASHLAND, VA", rows: [sampleRow], timeZone: newYork, unavailableTrains: [],
+      stationName: "ASHLAND, VA", rows: [sampleRow], timeZone: newYork, problem: nil,
       fetchedAt: beforeTheTrain))
   try await pump(board) { !board.rows.isEmpty }
 
@@ -561,7 +627,7 @@ func typedStationTakesName() async throws {
     StubLoader(updates: [
       "NYP": .loaded(
         stationName: "NEW YORK PENN, NY", rows: [sampleRow], timeZone: newYork,
-        unavailableTrains: [], fetchedAt: beforeTheTrain)
+        problem: nil, fetchedAt: beforeTheTrain)
     ]))
   let choice = try #require(StationChoice(typedCode: "nyp"))
   board.selectStation(code: choice.code, named: choice.name)
@@ -576,7 +642,7 @@ func missingNameKeepsCurrentName() async throws {
   let board = model(
     StubLoader(updates: [
       "ASD": .loaded(
-        stationName: nil, rows: [sampleRow], timeZone: newYork, unavailableTrains: [],
+        stationName: nil, rows: [sampleRow], timeZone: newYork, problem: nil,
         fetchedAt: beforeTheTrain)
     ]))
   try await pump(board) { !board.rows.isEmpty }
@@ -596,7 +662,7 @@ func partialFailureIsReported() async throws {
   let board = model(
     StubLoader(updates: [
       "ASD": .loaded(
-        stationName: nil, rows: [sampleRow], timeZone: newYork, unavailableTrains: ["1124"],
+        stationName: nil, rows: [sampleRow], timeZone: newYork, problem: "TRAIN 1124 UNAVAILABLE",
         fetchedAt: beforeTheTrain)
     ]))
   try await pump(board) { !board.rows.isEmpty }
@@ -624,7 +690,7 @@ func staleSelectionIsDropped() async throws {
 
   await loader.releaseFirst(
     with: .loaded(
-      stationName: "ASHLAND, VA", rows: [sampleRow], timeZone: newYork, unavailableTrains: [],
+      stationName: "ASHLAND, VA", rows: [sampleRow], timeZone: newYork, problem: nil,
       fetchedAt: beforeTheTrain))
   try await Task.sleep(for: .milliseconds(50))
   board.update(now: beforeTheTrain)

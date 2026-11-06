@@ -154,15 +154,15 @@ struct AmtrakStatusApp: ParsableCommand {
     finished.wait()
 
     switch results.collect().first {
-    case .loaded(_, let rows, let timeZone, let unavailableTrains, _):
+    case .loaded(_, let rows, let timeZone, let problem, let fetchedAt):
       let now = Date()
       let shown = TrainStatusRows.due(rows, within: hours, of: now)
       for line in BoardText.lines(for: shown, timeZone: timeZone, now: now) {
         print(line)
       }
-      if !unavailableTrains.isEmpty {
-        let trains = unavailableTrains.joined(separator: ", ")
-        Self.printError("Trains that could not be read: \(trains)")
+      if let problem {
+        let fetched = ISO8601DateFormatter().string(from: fetchedAt)
+        Self.printError("\(problem) (data fetched \(fetched))")
       }
     case .stationNotFound(let code):
       Self.printError("Amtraker does not know station \(code).")

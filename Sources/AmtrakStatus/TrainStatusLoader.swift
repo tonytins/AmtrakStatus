@@ -2,16 +2,20 @@ import AmtrakClient
 import Foundation
 import Logging
 
+#if canImport(FoundationNetworking)
+  import FoundationNetworking
+#endif
+
 /// The outcome of loading one station's trains.
 enum BoardUpdate: Equatable, Sendable {
-  /// New rows. `stationName` is `nil` when Amtraker gave no usable name,
-  /// `unavailableTrains` lists train numbers that could not be read, and `fetchedAt` is when
-  /// the oldest of the data was fetched, which is earlier than now when it came from the cache.
+  /// New rows. `stationName` is `nil` when Amtraker gave no usable name, `problem` says what
+  /// is missing or old when anything is, and `fetchedAt` is when the oldest of the data was
+  /// fetched, which is earlier than now when it came from the cache.
   case loaded(
     stationName: String?,
     rows: [TrainStatusRow],
     timeZone: TimeZone?,
-    unavailableTrains: [String],
+    problem: String?,
     fetchedAt: Date
   )
   /// Amtraker does not know the station.
@@ -39,11 +43,11 @@ struct AmtrakerStatusLoader: TrainStatusLoading {
     -> BoardUpdate
   {
     Self.logger.info("Starting train status refresh for station \(code)")
-    let fetchDates = FetchDates()
+    let record = FetchRecord()
     let client = AmtrakClient(
       cache: cache,
       freshness: maxAge.map { .reuse(maxAge: $0) } ?? .fetch,
-      fetchDates: fetchDates
+      record: record
     )
     do {
       let lookup = try await client.trainStationLookup(stationCode: code)
@@ -76,8 +80,8 @@ struct AmtrakerStatusLoader: TrainStatusLoading {
         stationName: StationHeading.make(name: lookup.name, state: lookup.state),
         rows: rows,
         timeZone: lookup.timeZone,
-        unavailableTrains: unavailableTrains.sorted(),
-        fetchedAt: fetchDates.oldest ?? Date()
+        problem: Self.problem(unavailableTrains: unavailableTrains, record: record),
+        fetchedAt: record.oldest ?? Date()
       )
     } catch AmtrakError.stationNotFound(let code) {
       Self.logger.error("Station \(code) was not found")
@@ -88,8 +92,24 @@ struct AmtrakerStatusLoader: TrainStatusLoading {
     }
   }
 
-  private static func message(for error: any Error) -> String {
+  /// Says what is wrong with a loaded board: data old because a request failed and the cache
+  /// stood in for it, or trains that could not be read at all. Old data comes first, since it
+  /// affects the whole board.
+  static func problem(unavailableTrains: [String], record: FetchRecord) -> String? {
+    if let failure = record.fallbackFailure {
+      return message(for: failure)
+    }
+    switch unavailableTrains.count {
+    case 0: return nil
+    case 1: return "TRAIN \(unavailableTrains[0]) UNAVAILABLE"
+    default: return "\(unavailableTrains.count) TRAINS UNAVAILABLE"
+    }
+  }
+
+  static func message(for error: any Error) -> String {
     switch error {
+    case is URLError:
+      "COULD NOT REACH AMTRAKER"
     case AmtrakError.httpStatus(let code):
       "AMTRAKER RETURNED HTTP \(code)"
     case AmtrakError.invalidURL(let url):

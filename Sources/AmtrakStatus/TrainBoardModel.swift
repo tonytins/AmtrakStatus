@@ -123,14 +123,14 @@ final class TrainBoardModel {
 
   private func apply(_ update: BoardUpdate) {
     switch update {
-    case .loaded(let stationName, let rows, let timeZone, let unavailableTrains, let fetchedAt):
+    case .loaded(let stationName, let rows, let timeZone, let problem, let fetchedAt):
       self.stationName = stationName ?? self.stationName
       self.rows = rows
       self.timeZone = timeZone ?? self.timeZone
       lastUpdatedAt = fetchedAt
       // Cached data is older than this refresh, so its next refresh is due sooner.
       nextRefresh = min(nextRefresh, fetchedAt.addingTimeInterval(refreshInterval))
-      problem = Self.summary(ofUnavailable: unavailableTrains)
+      self.problem = problem
       statusMessage = problem ?? "NO ACTIVE TRAINS REPORTED"
     case .stationNotFound(let code):
       rows = []
@@ -140,14 +140,6 @@ final class TrainBoardModel {
     case .failed(let message):
       problem = message
       statusMessage = message
-    }
-  }
-
-  private static func summary(ofUnavailable trains: [String]) -> String? {
-    switch trains.count {
-    case 0: nil
-    case 1: "TRAIN \(trains[0]) UNAVAILABLE"
-    default: "\(trains.count) TRAINS UNAVAILABLE"
     }
   }
 }

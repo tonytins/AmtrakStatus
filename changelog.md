@@ -1,5 +1,10 @@
 # Change Log
 
+## 0.3.116
+
+- When Amtraker can't be reached or sends something unreadable, the board shows the last saved data instead, however old, and the footer says so, such as `COULD NOT REACH AMTRAKER  /  SHOWING DATA FROM 17:47`. This works after a restart too. `--print` writes the same note, with the fetch time, to standard error.
+- A request the saved data covers is logged as one warning rather than an error.
+
 ## 0.3.115
 
 - Amtraker's responses are now kept in your cache folder, such as `~/.cache/AmtrakStatus` on Linux. Starting the app, using `--print`, or switching back to a station within the refresh interval reuses them instead of fetching everything again, and stations share what they have in common. Responses older than two days are deleted at startup.
