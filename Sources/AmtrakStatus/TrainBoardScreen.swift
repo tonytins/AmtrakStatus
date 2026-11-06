@@ -25,12 +25,13 @@ final class TrainBoardScreen {
   /// Whether the user asked to quit this frame.
   private(set) var shouldQuit = false
 
-  /// Creates the screen. Call this after `InitWindow`.
-  init(model: TrainBoardModel, script: UIScript, picker: StationPicker) {
+  /// Creates the screen, drawing its text in `textFont`, or raylib's font when it is `nil`.
+  /// Call this after `InitWindow`.
+  init(model: TrainBoardModel, script: UIScript, picker: StationPicker, textFont: Font?) {
     self.model = model
     self.script = script
     self.picker = picker
-    view = UIScriptView(script: script)
+    view = UIScriptView(script: script, theme: InterfaceTheme(font: textFont))
     renderers = BoardColumn.allCases.map { column in
       SplitFlapRenderer(style: script.control(named: column.rawValue).flatMap(script.style(for:)))
     }

@@ -48,28 +48,31 @@ final class StationPicker {
   private let script: UIScript
   private let view: UIScriptView
   private let frame: WindowFrame
-  private let overlay: Color
+  private let theme: InterfaceTheme
   private let size: Vector2
 
   private(set) var isOpen = false
 
-  /// Creates the picker. Call this after `InitWindow`.
-  init(script: UIScript) {
+  /// Creates the picker, drawing its text in `font`, or raylib's font when it is `nil`. Call
+  /// this after `InitWindow`.
+  init(script: UIScript, font: Font?) {
     self.script = script
     let frameStyle = script.styles["frame"]
     let standard = InterfaceTheme.standard
     let theme = InterfaceTheme(
       accent: frameStyle?.fillColor ?? standard.accent,
+      overlay: script.styles["frameOverlay"]?.backgroundColor ?? standard.overlay,
       panel: frameStyle?.backgroundColor ?? standard.panel,
       border: frameStyle?.borderColor ?? standard.border,
       text: frameStyle?.textColor ?? standard.text,
       secondaryText: frameStyle?.disabledTextColor ?? standard.secondaryText,
-      titleBar: script.styles["frameTitle"]?.backgroundColor ?? standard.titleBar
+      titleBar: script.styles["frameTitle"]?.backgroundColor ?? standard.titleBar,
+      font: font
     )
+    self.theme = theme
     view = UIScriptView(script: script, theme: theme)
     frame = WindowFrame(title: view.text(named: "windowTitle") ?? "", theme: theme)
     view.setHidden(true, named: "windowTitle")
-    overlay = script.styles["frameOverlay"]?.backgroundColor ?? standard.overlay
     size = Vector2(
       x: script.window.size.width,
       y: script.window.size.height + Float(WindowFrame.titleHeight)
@@ -124,7 +127,9 @@ final class StationPicker {
   func draw() {
     guard isOpen else { return }
     let bounds = bounds
-    DrawRectangle(0, 0, Int(GetScreenWidth()), Int(GetScreenHeight()), overlay)
+    let screen = Rectangle(
+      x: 0, y: 0, width: Float(GetScreenWidth()), height: Float(GetScreenHeight()))
+    theme.fillRectangle(screen, theme.overlay)
     frame.draw(in: bounds)
     view.draw(at: contentOrigin(in: bounds))
   }

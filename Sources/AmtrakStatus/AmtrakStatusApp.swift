@@ -128,9 +128,10 @@ struct AmtrakStatusApp: ParsableCommand {
     )
     defer { CloseWindow() }
 
-    // Not drawn with yet: the board and picker take these up in the next steps.
-    let fonts = InterfaceFont.allCases.compactMap { $0.load() }
-    defer { fonts.forEach(UnloadFont) }
+    let textFont = InterfaceFont.text.load()
+    // Not drawn with yet: the split-flap tiles take it up next.
+    let boardFont = InterfaceFont.board.load()
+    defer { [textFont, boardFont].compactMap(\.self).forEach(UnloadFont) }
 
     if let minimumSize = boardScript.window.minSize {
       SetWindowMinSize(Int(minimumSize.width), Int(minimumSize.height))
@@ -142,7 +143,8 @@ struct AmtrakStatusApp: ParsableCommand {
     let screen = TrainBoardScreen(
       model: model,
       script: boardScript,
-      picker: StationPicker(script: pickerScript)
+      picker: StationPicker(script: pickerScript, font: textFont),
+      textFont: textFont
     )
 
     while !WindowShouldClose(), !screen.shouldQuit {

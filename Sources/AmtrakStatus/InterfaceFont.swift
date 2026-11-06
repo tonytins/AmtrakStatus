@@ -15,7 +15,8 @@ enum InterfaceFont: String, CaseIterable {
   private static let logger = Logger(label: "com.tonybark.AmtrakStatus")
 
   /// The size each font's glyphs are drawn at when loaded. Text from 10 to 34 pixels is scaled
-  /// down from this with filtering, which keeps small sizes smoother than scaling up would.
+  /// down from this. Mipmaps keep thin strokes at the small end: without them, a 10-pixel "I"
+  /// scaled straight down from 48 pixels disappears.
   private static let loadedSize = 48
 
   /// Where the font file is, or `nil` when it is missing.
@@ -32,12 +33,13 @@ enum InterfaceFont: String, CaseIterable {
       return nil
     }
     // The C function, since the Int overload has no way to pass "all of ASCII" (nil).
-    let font = LoadFontEx(location.path, Int32(Self.loadedSize), nil, 0)
+    var font = LoadFontEx(location.path, Int32(Self.loadedSize), nil, 0)
     guard IsFontValid(font) else {
       Self.logger.warning("The font \(location.path) couldn't be read, so raylib's font is used")
       return nil
     }
-    SetTextureFilter(font.texture, .bilinear)
+    GenTextureMipmaps(&font.texture)
+    SetTextureFilter(font.texture, .trilinear)
     Self.logger.info("Loaded the font \(location.path)")
     return font
   }

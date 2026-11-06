@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.3.119
+
+- The header, headings, footer, and station picker now use [Overpass](https://github.com/RedHatOfficial/Overpass) instead of raylib's built-in font. The split-flap tiles keep theirs for now.
+- The fonts ship in the `Interface` folder with their licences (SIL Open Font License 1.1), and `--check-interface` checks they are there.
+- `ASSET-LICENSE` is gone. The project's art falls under its GPL licence like everything else.
+
 ## 0.3.117
 
 - With `--verbose`, the app logs a train that leaves the board because Amtraker stopped reporting it, rather than because it departed, such as `Train 9999 (9999-5), due 09:07 at ASD, is no longer reported by Amtraker and never departed`. This shows how often Amtraker drops trains before anything is built to hold on to them.
