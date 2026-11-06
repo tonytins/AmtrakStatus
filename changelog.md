@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.3.112
+
+- Trains leave the board once Amtraker says they have departed the station. Before, a train that left in the morning stayed until midnight. Trains still on their way or at the platform stay.
+
 ## 0.3.111
 
 - Times are now 24-hour, such as `19:09`, on the board, the clock, the update line, and `--print`.

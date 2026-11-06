@@ -55,9 +55,7 @@ struct AmtrakerStatusLoader: TrainStatusLoading {
       let rows = TrainStatusRows.make(
         from: trains,
         atStation: code,
-        staleTimes: TrainStatusRows.staleTimes(from: staleData),
-        timeZone: lookup.timeZone,
-        now: Date()
+        staleTimes: TrainStatusRows.staleTimes(from: staleData)
       )
       Self.logger.info("Train status refresh completed with \(rows.count) active rows")
       return .loaded(
@@ -117,24 +115,20 @@ enum TrainStatusRows {
     )
   }
 
-  /// Returns a row for each train stopping at `code`, soonest first. Trains that departed on
-  /// an earlier day, or that Amtraker has not heard from recently, are left out.
+  /// Returns a row for each train stopping at `code`, soonest first. Trains that have departed
+  /// from `code`, or that Amtraker has not heard from recently, are left out.
   ///
   /// Trains with the same time sort by ID, so rows keep their places between refreshes.
   static func make(
     from trains: [Train],
     atStation code: String,
-    staleTimes: [String: TimeInterval],
-    timeZone: TimeZone?,
-    now: Date
+    staleTimes: [String: TimeInterval]
   ) -> [TrainStatusRow] {
     let dates = BoardDateFormatting()
-    var calendar = Calendar(identifier: .gregorian)
-    calendar.timeZone = timeZone ?? .current
 
     let rows = trains.compactMap { train -> TrainStatusRow? in
       guard let leg = train.stations?.first(where: { $0.code == code }),
-        !hasDeparted(leg, before: calendar.startOfDay(for: now), dates: dates),
+        leg.status != .departed,
         staleTimes[train.trainID].map({ $0 <= staleDataThreshold }) ?? true
       else {
         return nil
@@ -166,16 +160,4 @@ enum TrainStatusRows {
     return Int(id[id.index(after: dash)...]).flatMap { (1...31).contains($0) ? $0 : nil }
   }
 
-  private static func hasDeparted(
-    _ leg: Station,
-    before startOfToday: Date,
-    dates: BoardDateFormatting
-  ) -> Bool {
-    guard leg.status == .departed,
-      let departure = dates.parsedDate(from: leg.dep) ?? dates.parsedDate(from: leg.schDep)
-    else {
-      return false
-    }
-    return departure < startOfToday
-  }
 }

@@ -51,16 +51,9 @@ private func row(arriving iso: String) -> TrainStatusRow {
 
 private func rows(
   _ trains: [Train],
-  staleTimes: [String: TimeInterval] = [:],
-  now: Date = beforeTheTrain
+  staleTimes: [String: TimeInterval] = [:]
 ) -> [TrainStatusRow] {
-  TrainStatusRows.make(
-    from: trains,
-    atStation: "ASD",
-    staleTimes: staleTimes,
-    timeZone: newYork,
-    now: now
-  )
+  TrainStatusRows.make(from: trains, atStation: "ASD", staleTimes: staleTimes)
 }
 
 private struct StubLoader: TrainStatusLoading {
@@ -234,13 +227,16 @@ func rowOrderIsStable() throws {
   #expect(rows([second, first]).map(\.trainID) == ["1-1", "2-1"])
 }
 
-@Test("Trains that departed on an earlier day and silent trains are left out")
-func staleTrainsAreLeftOut() throws {
-  let dayAfter = beforeTheTrain.addingTimeInterval(60 * 60 * 24)
-  let departed = try train(dep: "\"2026-11-04T09:08:00-05:00\"", status: "Departed")
-  #expect(rows([departed]).count == 1)
-  #expect(rows([departed], now: dayAfter).isEmpty)
+@Test(
+  "A train leaves the board once it departs, and stays while arriving or at the platform",
+  arguments: [("Enroute", true), ("Station", true), ("Departed", false)])
+func departedTrainsLeave(status: String, isShown: Bool) throws {
+  let arriving = try train(dep: "\"2026-11-04T09:08:00-05:00\"", status: status)
+  #expect(rows([arriving]).isEmpty != isShown)
+}
 
+@Test("Silent trains are left out")
+func staleTrainsAreLeftOut() throws {
   let silent = try train()
   #expect(rows([silent], staleTimes: ["67-3": 60 * 60 * 49]).isEmpty)
   #expect(rows([silent], staleTimes: ["67-3": 60]).count == 1)
@@ -534,13 +530,7 @@ func printAndVerboseFlags() throws {
 
 @Test("Printed boards are a header and one tab-separated line per row")
 func printedBoard() throws {
-  let rows = TrainStatusRows.make(
-    from: [try train()],
-    atStation: "ASD",
-    staleTimes: [:],
-    timeZone: newYork,
-    now: beforeTheTrain
-  )
+  let rows = TrainStatusRows.make(from: [try train()], atStation: "ASD", staleTimes: [:])
   let lines = BoardText.lines(for: rows, timeZone: newYork, now: beforeTheTrain)
   #expect(lines.first == "time\tnumber\ttrain\tto\tearly\tlate")
   #expect(lines.count == 2)
