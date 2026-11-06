@@ -45,12 +45,14 @@ are downloaded only at pinned versions, and a file whose SHA-256 isn't the publi
 ## Linux
 
 The app is built with the Swift runtime inside it (`--static-swift-stdlib`) and carries libxml2.
-A user's system needs glibc, X11, libcurl, zlib, liblzma, and the C++ runtime.
+A user's system needs glibc, X11, libcurl, zlib, liblzma, and the C++ runtime. libcurl is linked
+against the system's `libcurl.so.4`, which every distribution has, so building doesn't need its
+development package.
 
 **Which systems it runs on depends on where it's built.** glibc can't be carried in the package, so
 a package needs the glibc of the machine that built it, or newer, and the script prints that
-version when it finishes. A package built on Fedora 44 needs glibc 2.43 and doesn't start on Ubuntu
-24.04, which has 2.39. To reach more systems, build on an older one.
+version when it finishes. A package built on Fedora 44 needed glibc 2.43, and one built on this
+machine in November 2026 needs 2.44; neither starts on Ubuntu 24.04, which has 2.39. To reach more systems, build on an older one.
 
 Building needs the X11 and GL headers raylib compiles against; on an atomic distribution they come
 from Homebrew, through `CPATH` and `LIBRARY_PATH`. The script refuses a build that links a library

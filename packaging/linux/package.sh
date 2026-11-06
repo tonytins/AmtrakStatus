@@ -29,6 +29,12 @@ SYSTEM_XML="$(ldconfig -p 2>/dev/null | awk '/libxml2\.so\.[0-9]+ .*x86-64/ && !
 LINKDIR="$WORK/linux/link"
 mkdir -p "$LINKDIR"
 ln -sf "$SYSTEM_XML" "$LINKDIR/libxml2.so"
+# libcurl (Foundation's networking, built in with the Swift runtime) is linked against the system's
+# libcurl.so.4 too, but not carried: every distribution has that name. Systems without the
+# development package have no libcurl.so to link with, so it gets the same kind of link.
+SYSTEM_CURL="$(ldconfig -p 2>/dev/null | awk '/libcurl\.so\.4 .*x86-64/ && !found { print $NF; found = 1 }')"
+[[ -n "$SYSTEM_CURL" && -f "$SYSTEM_CURL" ]] || fail "the system has no libcurl to link against."
+ln -sf "$SYSTEM_CURL" "$LINKDIR/libcurl.so"
 export LIBRARY_PATH="$LINKDIR${LIBRARY_PATH:+:$LIBRARY_PATH}"
 # $ORIGIN is for the dynamic linker, not the shell.
 # shellcheck disable=SC2016
