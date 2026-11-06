@@ -3,12 +3,6 @@
     <img title="" src="assets/screenshot.png" alt="" data-align="center" width="80%">
 </p>
 
-<p align="center">
-  <b>an open-source Swift reimplementation of The Sims Online based on Swift and Raylib.</b><br>
-  Designed for LAN and small scale use<br>
-  Support for Beta, Base Game, and New & Improved
-</p>
-
 ## 🔍 Background
 
 See [background.md](./background.md).
