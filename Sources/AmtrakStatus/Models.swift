@@ -27,7 +27,7 @@ struct TrainStatusRow: Identifiable, Equatable, Sendable {
   }
 }
 
-/// The columns of the board. Each raw value names the region that places its tiles in `board.xml`.
+/// The columns of the board. Each raw value names the region that places its tiles in `board.uix`.
 enum BoardColumn: String, CaseIterable {
   case time = "columnTime"
   case number = "columnNumber"

@@ -2,7 +2,7 @@ import Foundation
 import Hudini
 import Raylib
 
-/// Connects the model to `board.xml`: it fills the document's text controls, draws split-flap
+/// Connects the model to `board.uix`: it fills the document's text controls, draws split-flap
 /// tiles into its regions, and handles the board's input.
 final class TrainBoardScreen {
   /// The controls the screen depends on.
@@ -15,11 +15,15 @@ final class TrainBoardScreen {
   private let script: UIScript
   private let view: UIScriptView
   private let picker: StationPicker
+  private let windowManager = WindowManager()
   private let renderers: [SplitFlapRenderer]
   private let rowDivider: Color
   private let dates = BoardDateFormatting()
   private var board = SplitFlapBoard()
   private var rowCount = 1
+  private var scrollOffset = 0
+  /// How many trains the model had last frame, which bounds this frame's scrolling input.
+  private var shownRowTotal = 0
   private var shownStationName: String?
 
   /// Whether the user asked to quit this frame.
@@ -50,12 +54,39 @@ final class TrainBoardScreen {
   }
 
   func update(at time: Double, now: Date) {
-    handleInput()
+    // Input goes first, scrolling within last frame's limit, so a station chosen now shows its
+    // own rows this frame. The rows and row count are read after the model and window update,
+    // and the offset is clamped again in case either changed.
+    handleInput(maxOffset: Self.maxScrollOffset(totalRows: shownRowTotal, rowCount: rowCount))
     model.update(now: now)
     view.setWindowSize(Vector2(x: Float(GetScreenWidth()), y: Float(GetScreenHeight())))
+
     let rows = model.shownRows(now: now)
-    showModel(now: now, hasRows: !rows.isEmpty)
+    let rowsHeight = view.bounds(named: "rows", at: .zero)?.height ?? 0
+    rowCount = SplitFlapMetrics.rowCount(forHeight: Int(rowsHeight))
+    shownRowTotal = rows.count
+    scrollOffset = Self.clampScrollOffset(scrollOffset, totalRows: rows.count, rowCount: rowCount)
+    showModel(now: now, hasRows: !rows.isEmpty, totalRows: rows.count)
     showRows(rows, at: time, now: now)
+  }
+
+  /// The furthest the board can scroll: far enough that the last train fills the bottom row.
+  static func maxScrollOffset(totalRows: Int, rowCount: Int) -> Int {
+    max(0, totalRows - max(1, rowCount))
+  }
+
+  /// Keeps `offset` between the first train and `maxScrollOffset(totalRows:rowCount:)`.
+  static func clampScrollOffset(_ offset: Int, totalRows: Int, rowCount: Int) -> Int {
+    min(max(0, offset), maxScrollOffset(totalRows: totalRows, rowCount: rowCount))
+  }
+
+  /// The footer's note of which trains are showing, such as "SHOWING 9-16 OF 20", or `nil`
+  /// when every train fits. It uses an ASCII hyphen, since the fonts load only ASCII glyphs.
+  static func scrollSummary(offset: Int, totalRows: Int, rowCount: Int) -> String? {
+    guard rowCount > 0, totalRows > rowCount else { return nil }
+    let first = clampScrollOffset(offset, totalRows: totalRows, rowCount: rowCount) + 1
+    let last = min(first - 1 + rowCount, totalRows)
+    return "SHOWING \(first)-\(last) OF \(totalRows)"
   }
 
   func draw(at time: Double) {
@@ -66,12 +97,14 @@ final class TrainBoardScreen {
         drawRowDividers(in: bounds)
       }
     }
-    picker.draw()
+    windowManager.draw()
+    windowManager.drawTooltip()
   }
 
-  private func handleInput() {
-    guard !picker.isOpen else {
-      if let choice = picker.update() {
+  private func handleInput(maxOffset: Int) {
+    guard !picker.isOpen(in: windowManager) else {
+      if let choice = picker.update(in: windowManager) {
+        scrollOffset = 0
         model.selectStation(code: choice.code, named: choice.name.uppercased())
       }
       return
@@ -84,37 +117,64 @@ final class TrainBoardScreen {
       let stationButton = view.bounds(named: "stationButton", at: .zero),
       CheckCollisionPointRec(GetMousePosition(), stationButton)
     {
-      picker.open()
+      picker.open(in: windowManager)
+      return
+    }
+
+    let wheel = GetMouseWheelMove()
+    if wheel > 0 {
+      scrollOffset = max(0, scrollOffset - 1)
+    } else if wheel < 0 {
+      scrollOffset = min(maxOffset, scrollOffset + 1)
+    }
+
+    if IsKeyPressed(.down) {
+      scrollOffset = min(maxOffset, scrollOffset + 1)
+    } else if IsKeyPressed(.up) {
+      scrollOffset = max(0, scrollOffset - 1)
+    } else if IsKeyPressed(.pageDown) {
+      scrollOffset = min(maxOffset, scrollOffset + rowCount)
+    } else if IsKeyPressed(.pageUp) {
+      scrollOffset = max(0, scrollOffset - rowCount)
+    } else if IsKeyPressed(.home) {
+      scrollOffset = 0
+    } else if IsKeyPressed(.end) {
+      scrollOffset = maxOffset
     }
   }
 
-  private func showModel(now: Date, hasRows: Bool) {
+  private func showModel(now: Date, hasRows: Bool, totalRows: Int) {
     view.setText(model.stationName, named: "stationName")
     view.setText(
       "STATION \(model.stationCode)  /  LIVE TRAIN INFORMATION",
       named: "stationDetail"
     )
     view.setText(model.stationTime(now: now), named: "clock")
-    view.setText(model.updateSummary, named: "updateSummary")
+
+    var summary = model.updateSummary
+    if let shown = Self.scrollSummary(offset: scrollOffset, totalRows: totalRows, rowCount: rowCount) {
+      summary += "  /  \(shown)"
+    }
+    view.setText(summary, named: "updateSummary")
+
     view.setText("VERSION \(AmtrakStatusApp.configuration.version)", named: "version")
     view.setText(model.emptyMessage, named: "statusMessage")
     view.setHidden(hasRows, named: "statusMessage")
 
     if shownStationName != model.stationName {
       shownStationName = model.stationName
+      scrollOffset = 0
       SetWindowTitle("Amtrak Status - \(model.stationName)")
     }
   }
 
   private func showRows(_ rows: [TrainStatusRow], at time: Double, now: Date) {
-    let rowsHeight = view.bounds(named: "rows", at: .zero)?.height ?? 0
-    rowCount = SplitFlapMetrics.rowCount(forHeight: Int(rowsHeight))
-
+    let visibleRows = Array(rows.dropFirst(scrollOffset).prefix(rowCount))
     let columns = BoardColumn.allCases
     let rowText = BoardRowText(timeZone: model.timeZone, now: now, dates: dates)
     let text = (0..<rowCount).map { index in
       columns.map { column in
-        index < rows.count ? rowText.value(of: column, in: rows[index]) : column.placeholder
+        index < visibleRows.count ? rowText.value(of: column, in: visibleRows[index]) : column.placeholder
       }
     }
     let capacities = zip(columns, renderers).map { column, renderer in

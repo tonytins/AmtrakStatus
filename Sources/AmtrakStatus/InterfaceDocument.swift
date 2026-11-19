@@ -11,9 +11,9 @@ enum InterfaceDocumentError: LocalizedError, Equatable {
   var errorDescription: String? {
     switch self {
     case .notFound(let document):
-      "The interface document \(document).xml is missing from the app's resources."
+      "The interface document \(document).uix is missing from the app's resources."
     case .missingControls(let document, let names):
-      "\(document).xml has no control named \(names.joined(separator: ", "))."
+      "\(document) has no control named \(names.joined(separator: ", "))."
     case .missingFont(let name):
       "The font \(name).ttf is missing from the app's resources."
     }
@@ -33,8 +33,22 @@ enum InterfaceDocument {
   /// or `Contents/Resources` in a Mac app.
   static func location(
     named name: String,
-    withExtension fileExtension: String = "xml",
+    withExtension fileExtension: String = "uix",
     packagedIn folder: URL? = Bundle.main.resourceURL
+  ) -> URL? {
+    if let found = findLocation(named: name, withExtension: fileExtension, packagedIn: folder) {
+      return found
+    }
+    if fileExtension == "uix" {
+      return findLocation(named: name, withExtension: "xml", packagedIn: folder)
+    }
+    return nil
+  }
+
+  private static func findLocation(
+    named name: String,
+    withExtension fileExtension: String,
+    packagedIn folder: URL?
   ) -> URL? {
     if let packaged = folder?.appendingPathComponent("Interface/\(name).\(fileExtension)"),
       FileManager.default.fileExists(atPath: packaged.path)
@@ -56,7 +70,7 @@ enum InterfaceDocument {
     let script = try UIScript(contentsOf: url)
     for ignored in script.ignoredAttributes {
       logger.warning(
-        "\(name).xml line \(ignored.line): \(ignored.element) ignores '\(ignored.attribute)'"
+        "\(url.lastPathComponent) line \(ignored.line): \(ignored.element) ignores '\(ignored.attribute)'"
       )
     }
 

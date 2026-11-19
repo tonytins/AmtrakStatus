@@ -940,15 +940,20 @@ func packagedDocumentIsPreferred() throws {
   defer { try? FileManager.default.removeItem(at: folder) }
   let interface = folder.appendingPathComponent("Interface")
   try FileManager.default.createDirectory(at: interface, withIntermediateDirectories: true)
-  let packaged = interface.appendingPathComponent("board.xml")
+  let packaged = interface.appendingPathComponent("board.uix")
   try Data("<UIScript/>".utf8).write(to: packaged)
 
   #expect(InterfaceDocument.location(named: "board", packagedIn: folder)?.path == packaged.path)
 
   // The package has no picker document, so that lookup falls through to the bundle.
   let picker = try #require(InterfaceDocument.location(named: "station-picker", packagedIn: folder))
-  #expect(picker.path != interface.appendingPathComponent("station-picker.xml").path)
-  #expect(picker.lastPathComponent == "station-picker.xml")
+  #expect(picker.path != interface.appendingPathComponent("station-picker.uix").path)
+  #expect(picker.lastPathComponent == "station-picker.uix")
+
+  // Fallback to .xml works when .uix is absent.
+  let fallback = interface.appendingPathComponent("legacy.xml")
+  try Data("<UIScript/>".utf8).write(to: fallback)
+  #expect(InterfaceDocument.location(named: "legacy", packagedIn: folder)?.path == fallback.path)
 }
 
 @Test("A document that is nowhere has no location")
@@ -994,4 +999,28 @@ func missingControlIsRefused() {
   ) {
     try InterfaceDocument.load(named: "board", requiring: ["nonexistent"])
   }
+}
+
+@Test("Scrolling stops where the last train fills the bottom row")
+func scrollOffsetIsClamped() {
+  #expect(TrainBoardScreen.maxScrollOffset(totalRows: 20, rowCount: 8) == 12)
+  #expect(TrainBoardScreen.maxScrollOffset(totalRows: 5, rowCount: 8) == 0)
+  #expect(TrainBoardScreen.maxScrollOffset(totalRows: 0, rowCount: 0) == 0)
+  #expect(TrainBoardScreen.clampScrollOffset(-3, totalRows: 20, rowCount: 8) == 0)
+  #expect(TrainBoardScreen.clampScrollOffset(50, totalRows: 20, rowCount: 8) == 12)
+  #expect(TrainBoardScreen.clampScrollOffset(4, totalRows: 20, rowCount: 8) == 4)
+  // A station change can shrink the list under an offset scrolled for the old one.
+  #expect(TrainBoardScreen.clampScrollOffset(12, totalRows: 3, rowCount: 8) == 0)
+}
+
+@Test("The footer names the trains showing, in characters the font has")
+func scrollSummaryText() throws {
+  #expect(TrainBoardScreen.scrollSummary(offset: 0, totalRows: 20, rowCount: 8) == "SHOWING 1-8 OF 20")
+  #expect(TrainBoardScreen.scrollSummary(offset: 12, totalRows: 20, rowCount: 8) == "SHOWING 13-20 OF 20")
+  #expect(TrainBoardScreen.scrollSummary(offset: 99, totalRows: 20, rowCount: 8) == "SHOWING 13-20 OF 20")
+  #expect(TrainBoardScreen.scrollSummary(offset: 0, totalRows: 8, rowCount: 8) == nil)
+  #expect(TrainBoardScreen.scrollSummary(offset: 0, totalRows: 5, rowCount: 0) == nil)
+  // The fonts load ASCII only; anything else draws as "?".
+  let text = try #require(TrainBoardScreen.scrollSummary(offset: 3, totalRows: 40, rowCount: 10))
+  #expect(text.unicodeScalars.allSatisfy { $0.isASCII })
 }

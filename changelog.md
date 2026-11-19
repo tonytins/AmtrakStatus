@@ -1,5 +1,12 @@
 # Change Log
 
+## 0.3.124
+
+- When a station has more trains than the board has rows, scroll with the mouse wheel, the Up and Down arrows, Page Up and Page Down, or Home and End. The footer shows which trains are on the board, such as "SHOWING 9-16 OF 23", and choosing another station goes back to the top.
+- The station picker now uses Hudini's window manager. It still opens in the middle of the board and dims what's behind it, and it now reopens wherever it was last dragged.
+- Interface documents now use Hudini's `.uix` extension. A document still named `.xml` is found when there's no `.uix` one.
+- Updated GitVersion to 0.3.0, swift-argument-parser to 1.8.0, swift-log to 1.17.0, swift-cst to 0.4.0, and Hudini to its latest `main`.
+
 ## 0.3.120
 
 - The split-flap tiles now use [B612 Mono](https://github.com/polarsys/b612), a typeface made for cockpit displays, and have rounded corners. A flap rounds only its outer edge, so the hinge stays straight while it falls.

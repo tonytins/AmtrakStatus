@@ -74,7 +74,7 @@ smoke_test() {
     "$exe" --version >/dev/null || fail "the packaged app didn't start."
     # stderr stays out of the capture, so a warning about a document isn't taken for its location.
     found="$("$exe" --check-interface)" || fail "the packaged app couldn't load its interface."
-    [[ "$found" == *board.xml* && "$found" == *station-picker.xml* ]] \
+    [[ "$found" == *board.uix* && "$found" == *station-picker.uix* ]] \
         || fail "the packaged app didn't report its interface documents:"$'\n'"$found"
     [[ "$found" == *B612Mono-Bold.ttf* && "$found" == *Overpass-Regular.ttf* ]] \
         || fail "the packaged app didn't report its fonts:"$'\n'"$found"

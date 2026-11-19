@@ -4,7 +4,7 @@ import Raylib
 /// Draws split-flap tiles in the colors and font size of a `UIScript` style.
 struct SplitFlapRenderer {
   /// How round the tiles' corners are, in pixels. It lives here because UIScript can't set
-  /// corners on a style yet; move it into `board.xml` once Hudini can.
+  /// corners on a style yet; move it into `board.uix` once Hudini can.
   static let cornerRadius: Float = 3
 
   private static let defaultFontSize = 20

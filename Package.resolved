@@ -1,13 +1,13 @@
 {
-  "originHash" : "f2774f3fb3eddac984c769caad49257afdfa5ba7e08c596891fa04b330e9eef9",
+  "originHash" : "f39e53f570c3e0c3a0d2534cef9cebfc11fe874ee96750829a28ee42ebc80da1",
   "pins" : [
     {
       "identity" : "gitversion",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tonytins/GitVersion",
       "state" : {
-        "revision" : "485901ed762689af3abee8b65dd1c2f2a8d00750",
-        "version" : "0.2.0"
+        "revision" : "64f223945c7100702bd9fd1ab1cba6c50cb709a9",
+        "version" : "0.3.0"
       }
     },
     {
@@ -16,7 +16,7 @@
       "location" : "https://github.com/tonytins/Hudini",
       "state" : {
         "branch" : "main",
-        "revision" : "908728dd946d89cbeee4b375b1a6d0b1026320f2"
+        "revision" : "971425e7c03959fdf804b52e1113b5f050a2affe"
       }
     },
     {
@@ -42,8 +42,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/tonytins/swift-cst.git",
       "state" : {
-        "revision" : "12c64713bd30937381944a5349a433da6c76caf4",
-        "version" : "0.3.2"
+        "revision" : "8b3a06b2a31fd5b6d605cae496548f2393f6dfd4",
+        "version" : "0.4.0"
       }
     },
     {
@@ -51,8 +51,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-log",
       "state" : {
-        "revision" : "c9c6bb9d275ec0d95c3ad16391f3f045dc623104",
-        "version" : "1.16.2"
+        "revision" : "e3da04078777e6a1b72ce19981fbd6539b0847d8",
+        "version" : "1.17.0"
       }
     }
   ],

@@ -13,15 +13,15 @@ let package = Package(
     ),
     .package(
       url: "https://github.com/apple/swift-argument-parser",
-      .upToNextMajor(from: "1.5.0"),
+      .upToNextMajor(from: "1.8.0"),
     ),
     .package(
       url: "https://github.com/apple/swift-log",
-      .upToNextMajor(from: "1.5.0"),
+      .upToNextMajor(from: "1.17.0"),
     ),
     .package(
       url: "https://github.com/tonytins/GitVersion",
-      .upToNextMajor(from: "0.2.0"),
+      .upToNextMajor(from: "0.3.0"),
     ),
     .package(
       url: "https://github.com/tonytins/Hudini",

@@ -37,7 +37,7 @@ struct StationChoice: Equatable {
   }
 }
 
-/// The modal window that changes the station, laid out by `station-picker.xml`.
+/// The modal window that changes the station, laid out by `station-picker.uix`.
 final class StationPicker {
   /// The controls the picker depends on.
   static let requiredControls = ["windowTitle", "stationCode", "problem", "cancel", "useCode"]
@@ -49,9 +49,6 @@ final class StationPicker {
   private let view: UIScriptView
   private let frame: WindowFrame
   private let theme: InterfaceTheme
-  private let size: Vector2
-
-  private(set) var isOpen = false
 
   /// Creates the picker, drawing its text in `font`, or raylib's font when it is `nil`. Call
   /// this after `InitWindow`.
@@ -71,97 +68,85 @@ final class StationPicker {
     )
     self.theme = theme
     view = UIScriptView(script: script, theme: theme)
-    frame = WindowFrame(title: view.text(named: "windowTitle") ?? "", theme: theme)
+    frame = WindowFrame(view: view, title: view.text(named: "windowTitle") ?? "Change station")
     view.setHidden(true, named: "windowTitle")
-    size = Vector2(
-      x: script.window.size.width,
-      y: script.window.size.height + Float(WindowFrame.titleHeight)
-    )
   }
 
-  func open() {
+  /// Whether the picker window is open in `manager`.
+  func isOpen(in manager: WindowManager) -> Bool {
+    manager.isOpen(frame)
+  }
+
+  /// Opens the picker centered on the screen as a modal window.
+  func open(in manager: WindowManager) {
     view.setText("", named: Self.codeField)
     view.setText("", named: "problem")
-    // The click that opened the picker was handled last frame, so it cannot take this away.
     view.textField(named: Self.codeField)?.setFocused(true)
-    isOpen = true
+    let screenWidth = Float(GetScreenWidth())
+    let screenHeight = Float(GetScreenHeight())
+    let windowBounds = frame.place(at: .zero)
+    let centered = Vector2(
+      x: max(Self.screenMargin, (screenWidth - windowBounds.width) / 2),
+      y: max(Self.screenMargin, (screenHeight - windowBounds.height) / 2)
+    )
+    manager.open(frame, at: centered, modal: true, dimsBehind: true)
+  }
+
+  /// Closes the picker window.
+  func close(in manager: WindowManager) {
+    view.clearFocus()
+    manager.close(frame)
   }
 
   /// Handles this frame's input, and returns the station once the user chooses one.
-  func update() -> StationChoice? {
-    guard isOpen else { return nil }
+  func update(in manager: WindowManager) -> StationChoice? {
+    guard manager.isOpen(frame) else { return nil }
 
-    let bounds = bounds
-    _ = frame.followPointer(in: bounds)
-    if frame.update(in: bounds) == .close || IsKeyPressed(.escape) {
-      close()
+    if IsKeyPressed(.escape) {
+      close(in: manager)
       return nil
     }
 
-    for event in view.update(at: contentOrigin(in: bounds)) {
-      switch event {
-      case .pressed("cancel"):
-        close()
+    let events = manager.update()
+    for event in events where event.window === frame {
+      switch event.event {
+      case .closeRequested:
+        close(in: manager)
         return nil
-      case .pressed("useCode"):
+      case .minimizeRequested:
+        break
+      case .view(.pressed("cancel")):
+        close(in: manager)
+        return nil
+      case .view(.pressed("useCode")):
         guard case .submitted(let text)? = view.textField(named: Self.codeField)?.submit() else {
           continue
         }
-        if let choice = choose(typedCode: text) { return choice }
-      case .pressed(let control):
+        if let choice = choose(typedCode: text, in: manager) { return choice }
+      case .view(.pressed(let control)):
         guard
           let choice = StationChoice(
             presetControl: control,
             name: view.text(named: control) ?? control
           )
         else { continue }
-        close()
+        close(in: manager)
         return choice
-      case .submitted(Self.codeField, let text):
-        if let choice = choose(typedCode: text) { return choice }
-      case .submitted, .changed, .selected:
+      case .view(.submitted(Self.codeField, let text)):
+        if let choice = choose(typedCode: text, in: manager) { return choice }
+      case .view:
         continue
       }
     }
     return nil
   }
 
-  func draw() {
-    guard isOpen else { return }
-    let bounds = bounds
-    let screen = Rectangle(
-      x: 0, y: 0, width: Float(GetScreenWidth()), height: Float(GetScreenHeight()))
-    theme.fillRectangle(screen, theme.overlay)
-    frame.draw(in: bounds)
-    view.draw(at: contentOrigin(in: bounds))
-  }
-
-  private var bounds: Rectangle {
-    frame.place(
-      size: size,
-      at: Vector2(
-        x: max(Self.screenMargin, (Float(GetScreenWidth()) - size.x) / 2),
-        y: max(Self.screenMargin, (Float(GetScreenHeight()) - size.y) / 2)
-      )
-    )
-  }
-
-  private func contentOrigin(in bounds: Rectangle) -> Vector2 {
-    let content = WindowFrame.content(in: bounds)
-    return Vector2(x: content.x, y: content.y)
-  }
-
-  private func choose(typedCode text: String) -> StationChoice? {
+  private func choose(typedCode text: String, in manager: WindowManager) -> StationChoice? {
     guard let choice = StationChoice(typedCode: text) else {
       view.setText("STATION CODES USE LETTERS AND NUMBERS ONLY", named: "problem")
       return nil
     }
-    close()
+    close(in: manager)
     return choice
-  }
-
-  private func close() {
-    view.clearFocus()
-    isOpen = false
   }
 }
