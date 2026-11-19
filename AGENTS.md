@@ -59,27 +59,41 @@ layout, colors, and text.
 - **Keep it simple**. The simplest approach that matches what the application does wins.
 - **Say what you're unsure of**: assumptions, unverified behavior, and what needs testing.
 
-### Never Starve or Desync the Render Loop (Outranks Asynchrony)
+### Never Crash (Outranks Feature Work)
 
-An OpenGL context belongs to one thread. An asynchronous render loop hands
-execution to worker threads that lack the context, causing buffer swaps to draw
-nothing and the window to flicker. Render stability and main-thread ownership
-outrank convenience.
+AmtrakStatus is a board people leave running: a trap closes the window with no
+explanation, and nothing is left on screen to say what went wrong. Stability
+outranks features.
 
+- **Treat any trap as a crash**: force unwrapping (`!`), `try!`, `as!`, an
+  out-of-range index or slice, an integer overflow, an unchecked division, a
+  failed `precondition`, or `fatalError`. None of them may depend on API data,
+  cached files, or user input. Hudini and raylib-swift have preconditions of
+  their own, such as `WindowManager.open` needing a frame made with
+  `WindowFrame(view:)`; meet them in code rather than leaning on them.
+- **Validate everything that crosses a boundary**: command-line options (in
+  `validate()`), station codes typed into the picker (`StationChoice`),
+  Amtraker responses, cached responses read from disk, and the interface
+  documents and fonts.
+- **Fail clearly, and only before the window opens.** A bad option or a missing
+  interface document exits with a message on standard error and a non-zero
+  status, as does a failed fetch under `--print`. Once the window is open, only
+  the user closes it: a failed refresh, an unknown station, or an unreadable
+  cache becomes a message on the board, and a missing font falls back to
+  raylib's font with a warning.
 - **Keep the entry point synchronous and the render loop on the main thread.**
-  Do not use `AsyncParsableCommand`, `@MainActor`, or `await` in the loop: on
-  Linux they move frames across threads without the OpenGL context, and nothing
-  drains the main actor, so work sent to it never runs. Background tasks must
-  return results safely through `Mailbox`.
-- **Perform Raylib drawing only while the graphics context is available.**
-  Keep data fetching and state updates separate from drawing. Raylib calls must
-  never run on background threads.
+  A loop that leaves the main thread doesn't trap, but it fails as badly: the
+  OpenGL context belongs to one thread, so on Linux the window flickers or draws
+  nothing. Do not use `AsyncParsableCommand`, `@MainActor`, or `await` in the
+  loop, and nothing drains the main actor, so work sent to it never runs.
+  Background tasks return results through `Mailbox`.
+- **Make Raylib calls only on the main thread, while the window is open.** Keep
+  data fetching and state updates separate from drawing.
 - **Use the resolved raylib-swift API.** Don't assume C function names or docs for
   another raylib version match its Swift API.
-- **Treat any trap as a crash**: force unwrapping (`!`), `try!`, `as!`, an
-  out-of-range index or slice, integer overflow, or an unchecked division.
-  Malformed API responses or invalid user input must produce handled errors or
-  clean fallbacks, never a fatal error.
+- **Prefer `guard let`, failable initializers, and thrown errors** over
+  assertions. The app's one `precondition` checks the main thread at startup,
+  before any window exists.
 - **Add a focused regression test** for any crash, malformed data issue, or
   layout edge case.
 
