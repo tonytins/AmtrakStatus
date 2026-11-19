@@ -1,59 +1,140 @@
 # Project Guidelines
 
-## Project structure
-
-AmtrakStatus is a Swift executable that presents Amtraker train status. The
-local `AmtrakClient` package owns API requests and decoded response models; the
-executable owns presentation and application behavior.
+AmtrakStatus is a Swift executable that presents real-time Amtraker train status.
+The local `AmtrakClient` package owns API requests, decoded response models, and
+response caching; the executable owns presentation, interface layout, and
+application behavior.
 
 The main interface is a Raylib split-flap-style train status display modeled
-after public transport timetables, opening on Ashland, Virginia (ASD). Hudini's
-UIScript documents in `Sources/AmtrakStatus/Interface` describe its layout,
-colors, and text. Keep these responsibilities separate: API data belongs in
-`AmtrakClient`, while display and interaction logic belongs in the executable.
-Put design values in the documents rather than in Swift. The exceptions are
-what UIScript can't express yet: fonts, named in `InterfaceFont.swift`, and the
-split-flap tiles' corner radius, in `SplitFlapRenderer.swift`. Move them into the
-documents once Hudini can.
+after public transport timetables, opening by default on Ashland, Virginia (ASD).
+Hudini's UIScript documents in `Sources/AmtrakStatus/Interface` describe its
+layout, colors, and text.
 
-## Swift and graphics
+## Project Structure
 
-- Match the Swift tools version, formatting, and established naming in the
-  package and its targets.
-- Keep public package APIs clear at the call site and document behavior that
-  is not clear from their names.
-- Use the APIs from the resolved raylib-swift dependency. Do not assume C
-  function names or documentation for a different version match its Swift API.
-- Keep data fetching and state updates separate from drawing where practical.
-  Perform Raylib drawing only while the graphics context is available.
-- Keep the entry point synchronous and the render loop on the main thread. Do not
-  use `AsyncParsableCommand`, `@MainActor`, or `await` in the loop: on Linux they
-  move frames to threads without the OpenGL context, which makes the window
-  flicker. Nothing drains the main actor, so work sent to it never runs. Background
-  tasks return results through `Mailbox`.
-- Preserve useful existing AmtrakClient behavior while changing the interface.
+| Path                                                    | Contents                                                                                       |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `Sources/AmtrakStatus/AmtrakStatusApp.swift`            | Synchronous entry point, CLI arguments, window setup, and the render loop.                     |
+| `Sources/AmtrakStatus/TrainBoardScreen.swift`           | Fills `board.uix`, draws split-flap columns, and handles board input and scrolling.            |
+| `Sources/AmtrakStatus/TrainBoardModel.swift`            | Board state, train row collections, look-ahead filter, and refreshes.                          |
+| `Sources/AmtrakStatus/TrainStatusLoader.swift`          | Fetches trains off the main thread, drops departed and stale ones, returns rows via `Mailbox`. |
+| `Sources/AmtrakStatus/SplitFlapBoard.swift`             | Split-flap character matrix and column animation state.                                        |
+| `Sources/AmtrakStatus/SplitFlapRenderer.swift`          | Draws split-flap tiles: rounded corners, the hinge, and falling flaps.                         |
+| `Sources/AmtrakStatus/StationPicker.swift`              | Station picker window: a typed station code or preset station buttons.                         |
+| `Sources/AmtrakStatus/BoardRowText.swift`               | Formats each column's text for a train row.                                                    |
+| `Sources/AmtrakStatus/BoardText.swift`                  | Tab-separated board text for `--print`.                                                        |
+| `Sources/AmtrakStatus/BoardDateFormatting.swift`        | Station-local time zone date formatting, weekdays, and midnight tags.                          |
+| `Sources/AmtrakStatus/InterfaceDocument.swift`          | Loads and parses UIScript interface documents via Hudini.                                      |
+| `Sources/AmtrakStatus/InterfaceFont.swift`              | Loads the Overpass and B612 Mono fonts, ASCII glyphs only.                                     |
+| `Sources/AmtrakStatus/Mailbox.swift`                    | Thread-safe FIFO queue passing async fetch results to render loop.                             |
+| `Sources/AmtrakStatus/Models.swift`                     | Presentation models (`TrainStatusRow`, `BoardColumn`).                                         |
+| `Sources/AmtrakStatus/LateTrain.swift`                  | How early or late a train is.                                                                  |
+| `Sources/AmtrakStatus/Interface/`                       | UIScript documents (`board.uix`, `station-picker.uix`) and fonts.                              |
+| `AmtrakClient/Sources/AmtrakClient/AmtrakClient.swift`  | HTTP client requesting station train data from the Amtraker API.                               |
+| `AmtrakClient/Sources/AmtrakClient/ResponseCache.swift` | Disk cache storing responses and fetch timestamps per station URL.                             |
+| `AmtrakClient/Sources/AmtrakClient/Models.swift`        | Decodable Amtraker API station, train, and stop response models.                               |
+| `AmtrakClient/Sources/AmtrakClient/FetchRecord.swift`   | Metadata recording fetch outcomes, cache hits, and response ages.                              |
+| `Tests/AmtrakStatusTests/`                              | Headless unit tests for board modeling, caching, and text formatting.                          |
+| `packaging/`                                            | Multiplatform release packaging scripts and environment setup.                                 |
+| `GitVersion.txt`                                        | Baseline semantic version when no Git tag or branch supplies one.                              |
+| `changelog.md`                                          | User-facing release notes by version.                                                          |
+| `README.md`                                             | User-facing setup, flags, station display, and packaging docs.                                 |
 
-## Build and review
+## Build and Test
 
-- Use the package's existing SwiftPM and project commands when validation is
-  appropriate. Report checks that were not run.
+- Build the executable with `swift build`.
+- Run the application with `swift run AmtrakStatus` (or `swift run AmtrakStatus -s <STATION>`).
+- Run the test suite with `swift test`.
 - Keep logic that does not require graphics headless-testable. Use a runtime or
-  visual check for behavior that depends on a Raylib window.
-- Update the relevant documentation when user-visible behavior or project
-  setup changes.
-- The scripts in `packaging` build the release packages, each on its own
-  platform. See [packaging/README.md](packaging/README.md). If the app gains
-  files it needs at runtime, add them to `stage` in `packaging/env.sh`.
+  visual check for behavior that depends on a Raylib window or user input.
+- Release packages are built using the scripts in `packaging/`. If runtime files
+  or assets are added, add them to `stage` in `packaging/env.sh`.
 
-See [REVIEW.md](REVIEW.md) for the review checklist.
+## Golden Rules
+
+### Design Process
+
+- **Iterate**. A first design or name is a draft. Rebuild clumsy parts as understanding improves.
+- **Ask when a decision is open**, and explain the reasoning behind what you suggest.
+- **Keep it simple**. The simplest approach that matches what the application does wins.
+- **Say what you're unsure of**: assumptions, unverified behavior, and what needs testing.
+
+### Never Starve or Desync the Render Loop (Outranks Asynchrony)
+
+An OpenGL context belongs to one thread. An asynchronous render loop hands
+execution to worker threads that lack the context, causing buffer swaps to draw
+nothing and the window to flicker. Render stability and main-thread ownership
+outrank convenience.
+
+- **Keep the entry point synchronous and the render loop on the main thread.**
+  Do not use `AsyncParsableCommand`, `@MainActor`, or `await` in the loop: on
+  Linux they move frames across threads without the OpenGL context, and nothing
+  drains the main actor, so work sent to it never runs. Background tasks must
+  return results safely through `Mailbox`.
+- **Perform Raylib drawing only while the graphics context is available.**
+  Keep data fetching and state updates separate from drawing. Raylib calls must
+  never run on background threads.
+- **Use the resolved raylib-swift API.** Don't assume C function names or docs for
+  another raylib version match its Swift API.
+- **Treat any trap as a crash**: force unwrapping (`!`), `try!`, `as!`, an
+  out-of-range index or slice, integer overflow, or an unchecked division.
+  Malformed API responses or invalid user input must produce handled errors or
+  clean fallbacks, never a fatal error.
+- **Add a focused regression test** for any crash, malformed data issue, or
+  layout edge case.
+
+### Train Status and API Separation
+
+- **Keep `AmtrakClient` strictly separated from presentation.** `AmtrakClient`
+  owns network requests, response decoding, and cache policies. `AmtrakStatus`
+  consumes these models and handles filtering, timetable windows, and display.
+- **Never report stale or missing data as current.** When an API request fails,
+  clearly communicate the condition (retaining cached rows with clear stale
+  indicators or showing an error banner) rather than silently presenting stale
+  or empty data as up to date.
+- **Calculate dates in the station's time zone.** Today is the station's day,
+  not the local computer's. Format scheduled times, estimates, weekday markers,
+  and midnight rollovers according to the station's local time zone.
+- **Respect train lifecycles.** A train leaves the board once it departs, and
+  stays while arriving or at the platform. Trains silent for more than 48 hours
+  count as stale and are excluded.
+- **Maintain stable row ordering.** Trains that share a scheduled or estimated
+  time keep consistent relative ordering between refreshes.
+
+### Split-Flap and Interface Design
+
+- **Put design values in UIScript documents.** Layout, colors, margins, and
+  text belong in `Sources/AmtrakStatus/Interface` documents rather than in Swift.
+  Fonts (`InterfaceFont.swift`) and split-flap corner radii (`SplitFlapRenderer.swift`)
+  remain in Swift only until Hudini expresses them.
+- **Constrain characters to the board font's glyph set.** Split-flap text is
+  uppercased, padded or truncated to tile column widths, and characters outside
+  the board font's glyphs are mapped or replaced. The fonts load ASCII glyphs only, so text
+  the app writes into other controls, such as the footer, stays ASCII too.
+- **Keep flip animations smooth and stable.** Tiles flip through full animation
+  durations. Unchanged text does not trigger flip restarts, and window resizing
+  or station changes must not leave orphaned tile states.
+
+### Build, Packaging, and Releases
+
+- **Keep non-graphics logic headless-testable.** Data loading, response caching,
+  timetable look-ahead filtering, and text formatting must be tested in
+  `AmtrakStatusTests` without requiring a display context.
+- **Match Swift tools version, formatting, and naming.** Follow package tools
+  version rules and conventions established in the codebase.
+- **Keep documentation and packaging in step.** Update `packaging/env.sh` when
+  runtime assets change, and keep `README.md` and `changelog.md` up to date with
+  user-visible options or behavioral changes.
 
 ## Personal Configuration
 
-Keep personal preferences and machine-specific guidance in git-ignored
-`*.local` files or directories, rather than in shared project instructions.
-Check for relevant local guidance before environment-specific work. You can
-create or update these files for details such as:
+Keep personal preferences and machine-specific guidance in git-ignored `*.local`
+files or directories (such as `AGENTS.local.md`), rather than in shared project
+instructions. Check for relevant local guidance before environment-specific work.
+You can create or update these files for details such as:
 
 - Coding preferences
 - Local build and development environment
 - Personal shortcuts or workflows
+
+See [REVIEW.md](REVIEW.md) for the project's review checklist.
